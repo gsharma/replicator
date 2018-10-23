@@ -7,7 +7,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 /**
- * Metric handler for connections.
+ * Metric handler for connections to keep track of how we're doing on the server.
  * 
  * @author gaurav
  */

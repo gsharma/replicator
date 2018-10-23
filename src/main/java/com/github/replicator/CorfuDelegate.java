@@ -17,7 +17,7 @@ import org.corfudb.runtime.CorfuRuntime.CorfuRuntimeParameters;
 import org.corfudb.runtime.view.stream.IStreamView;
 
 /**
- * All datastore centric ops here.
+ * All datastore centric ops are here.
  * 
  * @author gaurav
  */
@@ -82,8 +82,8 @@ public final class CorfuDelegate {
     long tailOffsetBefore = tailOffset(streamId);
     streamView.append(LogEvent.serialize(event));
     long tailOffsetAfter = tailOffset(streamId);
-    logger.info(String.format("stream:%s, offsetPre:%d, offsetPost:%d, saved %s",
-        LogEvent.STREAM_NAME, tailOffsetBefore, tailOffsetAfter, event));
+    logger.info(String.format("stream:%s, offsets::pre:%d, post:%d, saved %s", LogEvent.STREAM_NAME,
+        tailOffsetBefore, tailOffsetAfter, event));
   }
 
   /**
@@ -103,7 +103,7 @@ public final class CorfuDelegate {
     long startOffset = 0;
     globalStreamOffsets.putIfAbsent(LogEvent.STREAM_NAME, 0L);
     startOffset = globalStreamOffsets.get(LogEvent.STREAM_NAME);
-    logger.info(String.format("Fetching events from stream:%s, startOffset:%d, endOffset:%d",
+    logger.info(String.format("Fetching events from stream:%s, offsets::start:%d, end:%d",
         LogEvent.STREAM_NAME, startOffset, tailOffset));
     final List<ILogData> eventsInLog = streamView.remainingUpTo(tailOffset);
     if (eventsInLog != null) {

@@ -173,7 +173,7 @@ final class ReplicationServiceImpl implements ReplicationService {
     logger.info(String.format("Shutting down Replication Service in %s mode at %s:%d",
         config.getMode(), config.getServerHost(), config.getServerPort()));
 
-    logger.info(String.format("Current Active Connections:%d, All Accepted Connections:%d",
+    logger.info(String.format("Current active connections:%d, All accepted connections:%d",
         currentActiveConnectionCount.get(), allAcceptedConnectionCount.get()));
 
     if (httpChannel != null) {
