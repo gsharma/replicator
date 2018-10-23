@@ -54,7 +54,9 @@ Replicator can run in one of 2 modes - TRANSMITTER or RECEIVER. The ReplicationM
 ### Configuration Options
 There are many knobs available to tweak the replicator's behavior and performance.
 
-####1. receiver or sender service config
+### receiver or sender service config
+| option                | description                    |
+| --------------------- | ------------------------------ |
 | serverHost            | service listen host            |
 | serverPort            | service listen port            |
 | serverThreadCount     | server event-loop thread count |
@@ -63,17 +65,25 @@ There are many knobs available to tweak the replicator's behavior and performanc
 | writerIdleTimeSeconds | writer idle timeout            |
 | compressionLevel      | wire compression level         |
 
-####2. overall replicator mode
+### overall replicator mode
+| option          | description                                   |
+| --------------- | --------------------------------------------- |
 | ReplicationMode | mode in which the current server is operating |
 
-####3. local corfu config
+### local corfu config
+| option    | description                                         |
+| --------- | --------------------------------------------------- |
 | corfuHost | local corfu server host if running in embedded mode |
 | corfuPort | local corfu server port if running in embedded mode |
 
-###4. remote service config
+### remote service config
+| option           | description                      |
+| ---------------- | -------------------------------- |
 | remoteServiceUrl | remote replication push endpoint |
 
-####5. streamer config
+### streamer config
+| option                     | description                                    |
+| -------------------------- | ---------------------------------------------- |
 | streamStartOffset          | stream-offset to start/resume streaming from   |
 | replicationIntervalSeconds | replication streaming interval                 |
 | replicationStreamDepth     | high watermark of replication events to stream |
