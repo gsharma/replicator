@@ -54,29 +54,29 @@ Replicator can run in one of 2 modes - TRANSMITTER or RECEIVER. The ReplicationM
 ### Configuration Options
 There are many knobs available to tweak the replicator's behavior and performance.
 
-1. receiver or sender service config
-serverHost - service listen host
-serverPort - service listen port
-serverThreadCount - server event-loop thread count
-workerThreadCount - server worker thread count
-readerIdleTimeSeconds - reader idle timeout
-writerIdleTimeSeconds - writer idle timeout
-compressionLevel - wire compression level
+####1. receiver or sender service config
+| serverHost            | service listen host            |
+| serverPort            | service listen port            |
+| serverThreadCount     | server event-loop thread count |
+| workerThreadCount     | server worker thread count     |
+| readerIdleTimeSeconds | reader idle timeout            |
+| writerIdleTimeSeconds | writer idle timeout            |
+| compressionLevel      | wire compression level         |
 
-2. overall replicator mode
-ReplicationMode - mode in which the current server is operating
+####2. overall replicator mode
+| ReplicationMode | mode in which the current server is operating |
 
-3. local corfu config
-corfuHost - local corfu server host if running in embedded mode
-corfuPort - local corfu server port if running in embedded mode
+####3. local corfu config
+| corfuHost | local corfu server host if running in embedded mode |
+| corfuPort | local corfu server port if running in embedded mode |
 
-4. remote service config
-remoteServiceUrl - remote replication push endpoint
+###4. remote service config
+| remoteServiceUrl | remote replication push endpoint |
 
-5. streamer config
-streamStartOffset - stream-offset to start/resume streaming from
-replicationIntervalSeconds - replication streaming interval
-replicationStreamDepth - high watermark of replication events to stream
+####5. streamer config
+| streamStartOffset          | stream-offset to start/resume streaming from   |
+| replicationIntervalSeconds | replication streaming interval                 |
+| replicationStreamDepth     | high watermark of replication events to stream |
 
 ### Note on Java 8 Usage
 Java 8 will be EOL in January 2019. At this time (October 2018), Corfu is using Java 8 and hence the choice of sticking with an older platform. Also note that Corfu's SLF4J dependency resolution is a bit haywire forcing me to fence the enforcer plugin - see the pom.xml if you're interested in details.
