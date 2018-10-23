@@ -49,6 +49,8 @@ final class SendModeServiceHandler {
   boolean init() {
     logger.info("Bootstrapping send mode service handler");
     running.set(true);
+    // TODO: can easily make a worker per stream and improve throughput with the general caveat of
+    // the available bandwidth and under the pretext that the number of streams is not crazy high
     Thread streamWorker = new Thread() {
       {
         setName("stream-worker");
@@ -85,18 +87,18 @@ final class SendModeServiceHandler {
 
       logger.info(String.format("Preparing to stream %d events", events.size()));
       final HttpUrl url = HttpUrl.parse(config.getRemoteServiceUrl());
-      ReplicationRequest replicationRequest = new ReplicationRequest();
+      final ReplicationRequest replicationRequest = new ReplicationRequest();
       replicationRequest.setRequestId(Math.random());
       replicationRequest.setEvents(events);
 
-      String requestJson = objectMapper.writeValueAsString(replicationRequest);
-      RequestBody body = RequestBody.create(JSON, requestJson);
-      Request request = new Request.Builder().url(url)
+      final String requestJson = objectMapper.writeValueAsString(replicationRequest);
+      final RequestBody body = RequestBody.create(JSON, requestJson);
+      final Request request = new Request.Builder().url(url)
           .header(HttpHeaderNames.CONTENT_TYPE.toString(), "application/json")
           // .header(HttpHeaderNames.CONNECTION.toString(), "close")
           // .header(HttpHeaderNames.ORIGIN.toString(), "localhost")
           .post(body).build();
-      Response response = client.newCall(request).execute();
+      final Response response = client.newCall(request).execute();
       logger.info(response);
 
       // TODO: depending on the failure modes, we should/could retry. On persistent and hard

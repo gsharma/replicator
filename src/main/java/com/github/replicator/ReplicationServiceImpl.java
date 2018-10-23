@@ -103,7 +103,7 @@ final class ReplicationServiceImpl implements ReplicationService {
     // Configure the server:worker system
     // TODO: try and use EpollEventLoopGroup
     serverThreads = new NioEventLoopGroup(serverThreadCount, new ThreadFactory() {
-      final AtomicInteger threadCounter = new AtomicInteger();
+      private final AtomicInteger threadCounter = new AtomicInteger();
 
       @Override
       public Thread newThread(final Runnable runnable) {
@@ -119,7 +119,7 @@ final class ReplicationServiceImpl implements ReplicationService {
       }
     });
     workerThreads = new NioEventLoopGroup(workerThreadCount, new ThreadFactory() {
-      final AtomicInteger threadCounter = new AtomicInteger();
+      private final AtomicInteger threadCounter = new AtomicInteger();
 
       @Override
       public Thread newThread(final Runnable runnable) {

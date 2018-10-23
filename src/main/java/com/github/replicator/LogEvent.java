@@ -11,6 +11,8 @@ import org.corfudb.annotations.Accessor;
 import org.corfudb.annotations.CorfuObject;
 import org.corfudb.annotations.Mutator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * Models an event which is interesting from the purposes of replication.
  * 
@@ -24,6 +26,7 @@ import org.corfudb.annotations.Mutator;
 @CorfuObject
 public class LogEvent implements Serializable {
   private static final long serialVersionUID = 1L;
+  private static final ObjectMapper objectMapper = new ObjectMapper();
   public static final String STREAM_NAME = "ReplicationStream";
   private long clientTstamp;
   private Component component;
@@ -67,13 +70,25 @@ public class LogEvent implements Serializable {
     this.status = status;
   }
 
+  // TODO: make choice of SerDe configurable
+  // JSON SerDe
+  public static byte[] jsonSerialize(final LogEvent event) throws Exception {
+    return objectMapper.writeValueAsBytes(event);
+  }
+
+  public static LogEvent jsonDeserialize(final byte[] event) throws Exception {
+    return objectMapper.readValue(event, LogEvent.class);
+  }
+
+  // Java SerDe
   public static byte[] serialize(final LogEvent event) throws IOException {
     ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
     new ObjectOutputStream(byteStream).writeObject(event);
     return byteStream.toByteArray();
   }
 
-  public static LogEvent deserialize(byte[] event) throws IOException, ClassNotFoundException {
+  public static LogEvent deserialize(final byte[] event)
+      throws IOException, ClassNotFoundException {
     ByteArrayInputStream byteStream = new ByteArrayInputStream(event);
     return (LogEvent) new ObjectInputStream(byteStream).readObject();
   }

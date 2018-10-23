@@ -77,12 +77,13 @@ public final class CorfuDelegate {
   public void saveEvent(final LogEvent event) throws Exception {
     Objects.requireNonNull(event);
     // logger.info("Saving " + event);
-    UUID streamId = CorfuRuntime.getStreamID(LogEvent.STREAM_NAME);
+    final UUID streamId = CorfuRuntime.getStreamID(LogEvent.STREAM_NAME);
     allStreamViews.putIfAbsent(streamId, runtime.getStreamsView().get(streamId));
-    IStreamView streamView = allStreamViews.get(streamId);
-    long tailOffsetBefore = tailOffset(streamId);
-    streamView.append(LogEvent.serialize(event));
-    long tailOffsetAfter = tailOffset(streamId);
+    final IStreamView streamView = allStreamViews.get(streamId);
+    final long tailOffsetBefore = tailOffset(streamId);
+    streamView.append(LogEvent.jsonSerialize(event));
+    // streamView.append(LogEvent.serialize(event));
+    final long tailOffsetAfter = tailOffset(streamId);
     logger.info(String.format("stream:%s, offsets::pre:%d, post:%d, saved %s", LogEvent.STREAM_NAME,
         tailOffsetBefore, tailOffsetAfter, event));
   }
@@ -90,17 +91,19 @@ public final class CorfuDelegate {
   /**
    * Fetch a batch of events from the last offset position for every stream.
    */
-  public List<LogEvent> fetchEvents() throws Exception {
+  public List<LogEvent> fetchEvents() {
     final List<LogEvent> events = new ArrayList<>();
     final UUID streamId = CorfuRuntime.getStreamID(LogEvent.STREAM_NAME);
     allStreamViews.putIfAbsent(streamId, runtime.getStreamsView().get(streamId));
     final IStreamView streamView = allStreamViews.get(streamId);
-    long tailOffset = tailOffset(streamId);
+    final long tailOffset = tailOffset(streamId);
     if (tailOffset == emptyStreamOffset) {
       logger.info("No events in stream: " + LogEvent.STREAM_NAME);
       return events;
     }
 
+    // TODO: startOffset should be configurable to allow the replicator to shutdown and resume from
+    // either the last streamed offset or a chosen offset of interest
     long startOffset = 0;
     globalStreamOffsets.putIfAbsent(LogEvent.STREAM_NAME, 0L);
     startOffset = globalStreamOffsets.get(LogEvent.STREAM_NAME);
@@ -109,9 +112,16 @@ public final class CorfuDelegate {
     final List<ILogData> eventsInLog = streamView.remainingUpTo(tailOffset);
     if (eventsInLog != null) {
       for (ILogData eventInLog : eventsInLog) {
-        byte[] serializedEvent = (byte[]) eventInLog.getPayload(runtime);
-        LogEvent readEvent = LogEvent.deserialize(serializedEvent);
-        events.add(readEvent);
+        try {
+          final byte[] serializedEvent = (byte[]) eventInLog.getPayload(runtime);
+          final LogEvent readEvent = LogEvent.jsonDeserialize(serializedEvent);
+          // final LogEvent readEvent = LogEvent.deserialize(serializedEvent);
+          events.add(readEvent);
+        } catch (Exception serdeIssue) {
+          // serDe is almost always a bitch, don't just stall the pipeline when shit happens, plan
+          // for repair operations
+          logger.error("Deserialization issue encountered for an event", serdeIssue);
+        }
       }
     }
     globalStreamOffsets.put(LogEvent.STREAM_NAME, tailOffset);
@@ -130,10 +140,9 @@ public final class CorfuDelegate {
   }
 
   private long tailOffset(final UUID streamId) {
-    TokenResponse response =
+    final TokenResponse response =
         runtime.getSequencerView().nextToken(Collections.singleton(streamId), 0);
-    long tailOffset = response.getTokenValue();
-    return tailOffset;
+    return response.getTokenValue();
   }
 
   public boolean tini() {
