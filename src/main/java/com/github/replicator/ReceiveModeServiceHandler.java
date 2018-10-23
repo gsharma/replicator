@@ -23,18 +23,19 @@ import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * This is a sample request handler where we want to write business logic.
+ * Replication service handler to support {@value ReplicationMode#RECEIVER} mode of operation.
  * 
  * @author gaurav
  */
-public final class ServiceHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-  private static final Logger logger = LogManager.getLogger(ServiceHandler.class.getSimpleName());
+final class ReceiveModeServiceHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+  private static final Logger logger =
+      LogManager.getLogger(ReceiveModeServiceHandler.class.getSimpleName());
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
   private final ReplicationServiceConfiguration config;
   private final CorfuDelegate corfuDelegate;
 
-  public ServiceHandler(final ReplicationServiceConfiguration config,
+  ReceiveModeServiceHandler(final ReplicationServiceConfiguration config,
       final CorfuDelegate corfuDelegate) {
     this.config = config;
     this.corfuDelegate = corfuDelegate;

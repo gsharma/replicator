@@ -8,6 +8,7 @@ package com.github.replicator;
  * @author gaurav
  */
 public final class ReplicationServiceConfiguration {
+  // receive service config
   private final int serverPort;
   private final int serverThreadCount;
   private final int workerThreadCount;
@@ -15,16 +16,21 @@ public final class ReplicationServiceConfiguration {
   private final int writerIdleTimeSeconds;
   private final int compressionLevel;
 
+  // overall replicator mode
   private final ReplicationMode mode;
 
   // local corfu config
   private final String corfuHost;
   private final int corfuPort;
 
+  // remote service config
+  private final long replicationIntervalSeconds;
+  private final String remoteServiceUrl;
+
   public ReplicationServiceConfiguration(final int serverPort, final int serverThreadCount,
       final int workerThreadCount, final int readerIdleTimeSeconds, final int writerIdleTimeSeconds,
       final int compressionLevel, final ReplicationMode mode, final String corfuHost,
-      final int corfuPort) {
+      final int corfuPort, final long replicationIntervalSeconds, final String remoteServiceUrl) {
     this.serverPort = serverPort;
     this.serverThreadCount = serverThreadCount;
     this.workerThreadCount = workerThreadCount;
@@ -34,6 +40,8 @@ public final class ReplicationServiceConfiguration {
     this.mode = mode;
     this.corfuHost = corfuHost;
     this.corfuPort = corfuPort;
+    this.replicationIntervalSeconds = replicationIntervalSeconds;
+    this.remoteServiceUrl = remoteServiceUrl;
   }
 
   int getServerPort() {
@@ -72,6 +80,14 @@ public final class ReplicationServiceConfiguration {
     return mode;
   }
 
+  public long getReplicationIntervalSeconds() {
+    return replicationIntervalSeconds;
+  }
+
+  public String getRemoteServiceUrl() {
+    return remoteServiceUrl;
+  }
+
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
@@ -80,7 +96,9 @@ public final class ReplicationServiceConfiguration {
         .append(workerThreadCount).append(", readerIdleTimeSeconds=").append(readerIdleTimeSeconds)
         .append(", writerIdleTimeSeconds=").append(writerIdleTimeSeconds)
         .append(", compressionLevel=").append(compressionLevel).append(", corfuHost=")
-        .append(corfuHost).append(", corfuPort=").append(corfuPort).append("]");
+        .append(corfuHost).append(", corfuPort=").append(corfuPort)
+        .append(", replicationIntervalSecs=").append(replicationIntervalSeconds)
+        .append(", remoteServiceUrl=").append(remoteServiceUrl).append("]");
     return builder.toString();
   }
 

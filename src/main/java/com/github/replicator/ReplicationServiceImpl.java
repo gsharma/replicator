@@ -61,6 +61,8 @@ final class ReplicationServiceImpl implements ReplicationService {
 
   private CorfuDelegate corfuDelegate;
 
+  private SendModeServiceHandler sendModeServiceHandler;
+
   private static final AtomicInteger currentActiveConnectionCount = new AtomicInteger();
   private static final AtomicLong allAcceptedConnectionCount = new AtomicLong();
 
@@ -88,8 +90,6 @@ final class ReplicationServiceImpl implements ReplicationService {
 
     corfuDelegate = new CorfuDelegate();
     corfuDelegate.init(config.getCorfuHost(), config.getCorfuPort());
-
-    final ReplicationMode mode = config.getMode();
 
     // TODO: handle args
     int port = config.getServerPort();
@@ -152,6 +152,11 @@ final class ReplicationServiceImpl implements ReplicationService {
 
     httpChannel = bootstrap.bind(port).sync().channel();
 
+    if (config.getMode() == ReplicationMode.TRANSMITTER) {
+      sendModeServiceHandler = new SendModeServiceHandler(config);
+      sendModeServiceHandler.init();
+    }
+
     // fsm.transitionTo(fsmFlowId, ServiceState.running);
     // fsm.stopFlow(fsmFlowId);
     logger.info(String.format("Successfully fired up Replication Service with %s", config));
@@ -178,6 +183,11 @@ final class ReplicationServiceImpl implements ReplicationService {
     }
     if (httpChannel != null) {
       httpChannel.closeFuture().await();
+    }
+
+    if (config.getMode() == ReplicationMode.TRANSMITTER && sendModeServiceHandler != null
+        && sendModeServiceHandler.isRunning()) {
+      sendModeServiceHandler.tini();
     }
 
     corfuDelegate.tini();
@@ -243,7 +253,7 @@ final class ReplicationServiceImpl implements ReplicationService {
       pipeline.addLast("6", new WriteTimeoutHandler(15000L, TimeUnit.MILLISECONDS));
 
       // Add service handler(s) here
-      pipeline.addLast("7", new ServiceHandler(config, corfuDelegate));
+      pipeline.addLast("7", new ReceiveModeServiceHandler(config, corfuDelegate));
 
       pipeline.addLast("8", new PipelineExceptionHandler());
 

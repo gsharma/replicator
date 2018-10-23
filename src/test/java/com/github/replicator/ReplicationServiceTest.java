@@ -38,7 +38,7 @@ public class ReplicationServiceTest {
   // compressionLevel
   private static ReplicationServiceConfiguration config =
       new ReplicationServiceConfiguration(9002, 2, Runtime.getRuntime().availableProcessors(), 15,
-          15, 9, ReplicationMode.TRANSMITTER, "localhost", 9005);
+          15, 9, ReplicationMode.TRANSMITTER, "localhost", 9005, 5L, "http://cloud.vmware.com");
   private static ReplicationService service =
       ReplicationServiceBuilder.newBuilder().config(config).build();
   // 10mins read timeout is for debugging
@@ -76,10 +76,10 @@ public class ReplicationServiceTest {
               .header("Origin", "localhost").get().build();
           response = client.newCall(request).execute();
           assertEquals(200, response.code());
-          ReplicationResponse baseResponse =
+          ReplicationResponse replicationResponse =
               objectMapper.readValue(response.body().bytes(), ReplicationResponse.class);
-          assertNotNull(baseResponse);
-          assertTrue(baseResponse.getServerTstampMillis() != 0);
+          assertNotNull(replicationResponse);
+          assertTrue(replicationResponse.getServerTstampMillis() != 0);
         } catch (Exception fooBar) {
           logger.error(fooBar);
         }
