@@ -16,7 +16,7 @@ import org.corfudb.infrastructure.SequencerServer;
 import org.corfudb.infrastructure.ServerContext;
 
 /**
- * Embedded corfu server useful for testing.
+ * Embedded corfu server useful for testing both ends of the async replication pipeline.
  * 
  * @author gsharma
  */
@@ -49,21 +49,23 @@ public final class LocalCorfuServer {
     };
     runner.start();
     // spin like silly waiting for server to bootstrap
+    long waitMillis = 200L;
     while (!running) {
-      logger.info("Waiting for corfu server to bootstrap");
-      Thread.sleep(100L);
+      logger.info(String.format("Waiting %d millis for corfu server to bootstrap on %s:%d",
+          waitMillis, host, port));
+      Thread.sleep(waitMillis);
     }
     logger.info(
         String.format("Successfully fired up corfu server with options::\n%s", serverOptions));
   }
 
   public void tini() {
-    logger.info("Shutting down local corfu server");
+    logger.info(String.format("Shutting down corfu server on %s:%d", host, port));
     running = false;
     runner.interrupt();
     CorfuServer.cleanShutdown(router);
     context.close();
-    logger.info("Successfully shut down local corfu server");
+    logger.info(String.format("Successfully shutdown corfu server on %s:%d", host, port));
   }
 
   public boolean isRunning() {
@@ -83,14 +85,14 @@ public final class LocalCorfuServer {
         Arrays.asList(baseServer, sequencerServer, layoutServer, logUnitServer, managementServer));
     context.setServerRouter(router);
     try {
-      logger.info("Starting local corfu server at port " + port);
+      // logger.info("Starting local corfu server at port " + port);
       running = true;
       CorfuServer.startAndListen(context.getBossGroup(), context.getWorkerGroup(),
           (bs) -> CorfuServer.configureBootstrapOptions(context, bs), context, router, address,
           port).channel().closeFuture().sync().get(); // To make ErrorProne checker happy.
     } catch (InterruptedException e) {
     } catch (Exception e) {
-      throw new RuntimeException("Error while running server.", e);
+      throw new RuntimeException("Error while running server", e);
     } finally {
       if (running) {
         logger.info("Shutting down local corfu server loop");

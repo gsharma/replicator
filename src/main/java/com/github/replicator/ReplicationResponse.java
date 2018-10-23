@@ -7,6 +7,7 @@ package com.github.replicator;
  */
 public class ReplicationResponse {
   private long serverTstampMillis;
+  private int ackEventsCount;
 
   public long getServerTstampMillis() {
     return serverTstampMillis;
@@ -16,8 +17,19 @@ public class ReplicationResponse {
     this.serverTstampMillis = serverTstampMillis;
   }
 
+  public int getAckEventsCount() {
+    return ackEventsCount;
+  }
+
+  public void setAckEventsCount(int ackEventsCount) {
+    this.ackEventsCount = ackEventsCount;
+  }
+
   @Override
   public String toString() {
-    return "Replication Response [serverTstampMillis=" + serverTstampMillis + "]";
+    StringBuilder builder = new StringBuilder();
+    builder.append("ReplicationResponse [serverTstampMillis=").append(serverTstampMillis)
+        .append(", ackEventsCount=").append(ackEventsCount).append("]");
+    return builder.toString();
   }
 }

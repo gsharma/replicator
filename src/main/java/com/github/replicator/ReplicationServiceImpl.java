@@ -32,12 +32,11 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpContentCompressor;
-import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.cors.CorsConfig;
-import io.netty.handler.codec.http.cors.CorsConfigBuilder;
-import io.netty.handler.codec.http.cors.CorsHandler;
+// import io.netty.handler.codec.http.cors.CorsConfig;
+// import io.netty.handler.codec.http.cors.CorsConfigBuilder;
+// import io.netty.handler.codec.http.cors.CorsHandler;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -53,6 +52,7 @@ final class ReplicationServiceImpl implements ReplicationService {
   private static final Logger logger =
       LogManager.getLogger(ReplicationServiceImpl.class.getSimpleName());
 
+  // fsm requires jdk9+ and corfu is still on 8, oh well
   // private StateMachine fsm;
   private final ReplicationServiceConfiguration config;
   private Channel httpChannel;
@@ -92,13 +92,13 @@ final class ReplicationServiceImpl implements ReplicationService {
     corfuDelegate.init(config.getCorfuHost(), config.getCorfuPort());
 
     // TODO: handle args
-    int port = config.getServerPort();
     int serverThreadCount = config.getServerThreadCount();
     int workerThreadCount = config.getWorkerThreadCount();
 
-    logger.info(
-        String.format("Firing up Replication Service at port %d with %d server, %d worker threads",
-            port, serverThreadCount, workerThreadCount));
+    logger.info(String.format(
+        "Firing up Replication Service in %s mode at %s:%d with %d server, %d worker threads",
+        config.getMode(), config.getServerHost(), config.getServerPort(), serverThreadCount,
+        workerThreadCount));
 
     // Configure the server:worker system
     // TODO: try and use EpollEventLoopGroup
@@ -150,16 +150,18 @@ final class ReplicationServiceImpl implements ReplicationService {
     // TODO get this from ReplicationServiceConfiguration
     bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 15000);
 
-    httpChannel = bootstrap.bind(port).sync().channel();
+    httpChannel = bootstrap.bind(config.getServerHost(), config.getServerPort()).sync().channel();
 
     if (config.getMode() == ReplicationMode.TRANSMITTER) {
-      sendModeServiceHandler = new SendModeServiceHandler(config);
+      sendModeServiceHandler = new SendModeServiceHandler(config, corfuDelegate);
       sendModeServiceHandler.init();
     }
 
     // fsm.transitionTo(fsmFlowId, ServiceState.running);
     // fsm.stopFlow(fsmFlowId);
-    logger.info(String.format("Successfully fired up Replication Service with %s", config));
+    logger
+        .info(String.format("Successfully fired up Replication Service in %s mode at %s:%d with %s",
+            config.getMode(), config.getServerHost(), config.getServerPort(), config));
   }
 
   @Override
@@ -168,10 +170,12 @@ final class ReplicationServiceImpl implements ReplicationService {
     // logger.info(fsm.readCurrentState(fsmFlowId));
     // fsm.transitionTo(fsmFlowId, ServiceState.stopping);
 
+    logger.info(String.format("Shutting down Replication Service in %s mode at %s:%d",
+        config.getMode(), config.getServerHost(), config.getServerPort()));
+
     logger.info(String.format("Current Active Connections:%d, All Accepted Connections:%d",
         currentActiveConnectionCount.get(), allAcceptedConnectionCount.get()));
 
-    logger.info("Shutting down Replication Service");
     if (httpChannel != null) {
       httpChannel.close();
     }
@@ -197,7 +201,9 @@ final class ReplicationServiceImpl implements ReplicationService {
     // if (fsm != null && fsm.alive()) {
     // fsm.demolish();
     // }
-    logger.info("Successfully shut down Replication Service");
+
+    logger.info(String.format("Successfully shutdown Replication Service in %s mode at %s:%d",
+        config.getMode(), config.getServerHost(), config.getServerPort()));
   }
 
   /**
@@ -252,14 +258,14 @@ final class ReplicationServiceImpl implements ReplicationService {
       pipeline.addLast("5", new ReadTimeoutHandler(15000L, TimeUnit.MILLISECONDS));
       pipeline.addLast("6", new WriteTimeoutHandler(15000L, TimeUnit.MILLISECONDS));
 
-      // Add service handler(s) here
-      pipeline.addLast("7", new ReceiveModeServiceHandler(config, corfuDelegate));
+      pipeline.addLast("7", new ReceiveModeServiceHandler(corfuDelegate));
 
       pipeline.addLast("8", new PipelineExceptionHandler());
 
-      final CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin()
-          .allowedRequestMethods(new HttpMethod[] {HttpMethod.GET, HttpMethod.POST}).build();
-      pipeline.addLast("9", new CorsHandler(corsConfig));
+      // if we need it
+      // final CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin()
+      // .allowedRequestMethods(new HttpMethod[] {HttpMethod.GET, HttpMethod.POST}).build();
+      // pipeline.addLast("9", new CorsHandler(corsConfig));
     }
   }
 

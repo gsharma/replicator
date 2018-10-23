@@ -16,6 +16,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,32 +33,29 @@ final class ReceiveModeServiceHandler extends SimpleChannelInboundHandler<FullHt
       LogManager.getLogger(ReceiveModeServiceHandler.class.getSimpleName());
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
-  private final ReplicationServiceConfiguration config;
   private final CorfuDelegate corfuDelegate;
 
-  ReceiveModeServiceHandler(final ReplicationServiceConfiguration config,
-      final CorfuDelegate corfuDelegate) {
-    this.config = config;
+  ReceiveModeServiceHandler(final CorfuDelegate corfuDelegate) {
     this.corfuDelegate = corfuDelegate;
   }
 
   @Override
   public void channelRead0(final ChannelHandlerContext context, final FullHttpRequest request)
       throws Exception {
-    logger.info(String.format("Received %s message", request.getClass().getSimpleName()));
+    // logger.info(String.format("Received %s message", request.getClass().getSimpleName()));
 
     if (HttpUtil.is100ContinueExpected(request)) {
       send100Continue(context);
       return;
     }
 
-    ReplicationServiceUtils.logRequestDetails(logger, context, request);
+    logger
+        .info(String.format("Received %s", ReplicationServiceUtils.readRequest(context, request)));
 
     // TODO: better handling of Supported methods, uri, content-types
     final HttpMethod method = request.method();
     final String uri = request.uri().trim();
     final String contentType = request.headers().get("Content-Type");
-
     final ByteBuf content = request.content();
     final String body = content != null ? content.toString(StandardCharsets.UTF_8) : "";
 
@@ -68,9 +66,18 @@ final class ReceiveModeServiceHandler extends SimpleChannelInboundHandler<FullHt
         ReplicationRequest replicationRequest =
             objectMapper.readValue(body, ReplicationRequest.class);
         if (replicationRequest != null) {
-          double requestId = replicationRequest.getRequestId();
-          long clientTstamp = replicationRequest.getClientTstampMillis();
-          logger.info("Received " + replicationRequest);
+          // logger.info("Received " + replicationRequest);
+          List<LogEvent> events = replicationRequest.getEvents();
+          if (events != null && !events.isEmpty()) {
+            corfuDelegate.saveEvents(events);
+          }
+
+          final ReplicationResponse replicationResponse = new ReplicationResponse();
+          replicationResponse.setAckEventsCount(events.size());
+          final String responseJson = objectMapper.writeValueAsString(replicationResponse);
+          logger.info("Replication round completion response: " + responseJson);
+          ByteBuf statusBytes = context.alloc().buffer();
+          statusBytes.writeBytes(responseJson.getBytes());
         }
       }
       response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);

@@ -20,8 +20,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import org.apache.logging.log4j.Logger;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -57,8 +55,7 @@ final class ReplicationServiceUtils {
     return response;
   }
 
-  static void logRequestDetails(final Logger logger, final ChannelHandlerContext context,
-      final FullHttpRequest request) {
+  static String readRequest(final ChannelHandlerContext context, final FullHttpRequest request) {
     StringBuilder details = new StringBuilder();
 
     // 1. parse uri and method
@@ -83,8 +80,7 @@ final class ReplicationServiceUtils {
       cookies = ServerCookieDecoder.STRICT.decode(cookieString);
     }
     details.append(String.format(" Cookies: %s", cookies));
-
-    logger.info(details.toString());
+    return details.toString();
   }
 
   static void channelResponseWrite(final ChannelHandlerContext channelHandlerContext,

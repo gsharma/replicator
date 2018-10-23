@@ -1,21 +1,15 @@
 package com.github.replicator;
 
+import java.util.List;
+
 /**
  * Framework for replication service requests.
  * 
  * @author gaurav
  */
 public class ReplicationRequest {
-  private long clientTstampMillis;
   private double requestId;
-
-  public long getClientTstampMillis() {
-    return clientTstampMillis;
-  }
-
-  public void setClientTstampMillis(long clientTstampMillis) {
-    this.clientTstampMillis = clientTstampMillis;
-  }
+  private List<LogEvent> events;
 
   public void setRequestId(double requestId) {
     this.requestId = requestId;
@@ -25,10 +19,20 @@ public class ReplicationRequest {
     return requestId;
   }
 
+  public void setEvents(List<LogEvent> events) {
+    this.events = events;
+  }
+
+  public List<LogEvent> getEvents() {
+    return events;
+  }
+
   @Override
   public String toString() {
-    return "Replication Request [clientTstampMillis=" + clientTstampMillis + ", requestId="
-        + requestId + "]";
+    StringBuilder builder = new StringBuilder();
+    builder.append("ReplicationRequest [requestId=").append(requestId).append(", events=")
+        .append(events).append("]");
+    return builder.toString();
   }
 
 }

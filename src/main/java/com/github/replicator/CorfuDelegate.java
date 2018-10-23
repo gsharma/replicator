@@ -1,14 +1,16 @@
 package com.github.replicator;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
+import org.corfudb.protocols.wireprotocol.ILogData;
 import org.corfudb.protocols.wireprotocol.TokenResponse;
 import org.corfudb.runtime.CorfuRuntime;
 import org.corfudb.runtime.CorfuRuntime.CorfuRuntimeParameters;
@@ -39,9 +41,11 @@ public final class CorfuDelegate {
   private CorfuRuntime runtime =
       CorfuRuntime.fromParameters(parameters).setTransactionLogging(true);
 
+  private String host;
+  private int port;
+  private final long emptyStreamOffset = -6L;
   private final ConcurrentMap<String, Long> globalStreamOffsets =
       new ConcurrentHashMap<String, Long>();
-  private final AtomicLong statusOffset = new AtomicLong(-6L);
   private final ConcurrentMap<UUID, IStreamView> allStreamViews = new ConcurrentHashMap<>();
 
   /**
@@ -49,20 +53,79 @@ public final class CorfuDelegate {
    */
   public boolean init(String host, int port) {
     logger.info(String.format("Boostrapping corfu delegate to connect to %s:%d", host, port));
+    this.host = host;
+    this.port = port;
     runtime.parseConfigurationString(host + ":" + port);
     runtime = runtime.connect();
     boolean connectionStatus = false;
     if (!runtime.isShutdown()) {
       connectionStatus = true;
-      logger.info("Successfully bootstrapped corfu delegate");
+      logger.info(String.format("Successfully bootstrapped corfu delegate to connect to %s:%d",
+          host, port));
     } else {
-      logger.info("Failed to bootstrap corfu delegate");
+      logger.info(
+          String.format("Failed to bootstrap corfu delegate to connect to %s:%d", host, port));
     }
     return connectionStatus;
   }
 
-  public void reapStream() {
-    
+  /**
+   * Save the provided event to a stream with the name corresponding to the component name of the
+   * event.
+   */
+  public void saveEvent(final LogEvent event) throws Exception {
+    Objects.requireNonNull(event);
+    // logger.info("Saving " + event);
+    UUID streamId = CorfuRuntime.getStreamID(LogEvent.STREAM_NAME);
+    allStreamViews.putIfAbsent(streamId, runtime.getStreamsView().get(streamId));
+    IStreamView streamView = allStreamViews.get(streamId);
+    long tailOffsetBefore = tailOffset(streamId);
+    streamView.append(LogEvent.serialize(event));
+    long tailOffsetAfter = tailOffset(streamId);
+    logger.info(String.format("stream:%s, offsetPre:%d, offsetPost:%d, saved %s",
+        LogEvent.STREAM_NAME, tailOffsetBefore, tailOffsetAfter, event));
+  }
+
+  /**
+   * Fetch a batch of events from the last offset position for every stream.
+   */
+  public List<LogEvent> fetchEvents() throws Exception {
+    final List<LogEvent> events = new ArrayList<>();
+    final UUID streamId = CorfuRuntime.getStreamID(LogEvent.STREAM_NAME);
+    allStreamViews.putIfAbsent(streamId, runtime.getStreamsView().get(streamId));
+    final IStreamView streamView = allStreamViews.get(streamId);
+    long tailOffset = tailOffset(streamId);
+    if (tailOffset == emptyStreamOffset) {
+      logger.info("No events in stream: " + LogEvent.STREAM_NAME);
+      return events;
+    }
+
+    long startOffset = 0;
+    globalStreamOffsets.putIfAbsent(LogEvent.STREAM_NAME, 0L);
+    startOffset = globalStreamOffsets.get(LogEvent.STREAM_NAME);
+    logger.info(String.format("Fetching events from stream:%s, startOffset:%d, endOffset:%d",
+        LogEvent.STREAM_NAME, startOffset, tailOffset));
+    final List<ILogData> eventsInLog = streamView.remainingUpTo(tailOffset);
+    if (eventsInLog != null) {
+      for (ILogData eventInLog : eventsInLog) {
+        byte[] serializedEvent = (byte[]) eventInLog.getPayload(runtime);
+        LogEvent readEvent = LogEvent.deserialize(serializedEvent);
+        events.add(readEvent);
+      }
+    }
+    globalStreamOffsets.put(LogEvent.STREAM_NAME, tailOffset);
+    return events;
+  }
+
+  /**
+   * Save a batch of events.
+   */
+  public void saveEvents(final List<LogEvent> events) throws Exception {
+    Objects.requireNonNull(events);
+    for (LogEvent event : events) {
+      saveEvent(event);
+    }
+    logger.info(String.format("Successfully saved %d events", events.size()));
   }
 
   private long tailOffset(final UUID streamId) {
@@ -73,14 +136,16 @@ public final class CorfuDelegate {
   }
 
   public boolean tini() {
-    logger.info("Shutting down corfu delegate");
+    logger.info(String.format("Shutting down corfu delegate connected to %s:%d", host, port));
     runtime.shutdown();
     boolean shutdownStatus = false;
     if (runtime.isShutdown()) {
       shutdownStatus = true;
-      logger.info("Successfully shutdown corfu delegate");
+      logger.info(
+          String.format("Successfully shutdown corfu delegate connected to %s:%d", host, port));
     } else {
-      logger.info("Failed to shutdown corfu delegate");
+      logger
+          .info(String.format("Failed to shutdown corfu delegate connected to %s:%d", host, port));
     }
     return shutdownStatus;
   }

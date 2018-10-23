@@ -1,11 +1,10 @@
 package com.github.replicator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,17 +12,12 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.replicator.LogEvent.Component;
+import com.github.replicator.LogEvent.Status;
 import com.github.replicator.ReplicationService.ReplicationServiceBuilder;
 
-import io.netty.handler.codec.http.HttpHeaderNames;
-import okhttp3.ConnectionPool;
-import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 
 /**
@@ -34,77 +28,104 @@ import okhttp3.Response;
 public class ReplicationServiceTest {
   private static final Logger logger =
       LogManager.getLogger(ReplicationServiceTest.class.getSimpleName());
-  // serverPort, serverThreadCount, workerThreadCount, readerIdleTimeSeconds, writerIdleTimeSeconds,
-  // compressionLevel
-  private static ReplicationServiceConfiguration config =
-      new ReplicationServiceConfiguration(9002, 2, Runtime.getRuntime().availableProcessors(), 15,
-          15, 9, ReplicationMode.TRANSMITTER, "localhost", 9005, 5L, "http://cloud.vmware.com");
-  private static ReplicationService service =
-      ReplicationServiceBuilder.newBuilder().config(config).build();
-  // 10mins read timeout is for debugging
-  private static OkHttpClient client =
-      new OkHttpClient.Builder().connectionPool(new ConnectionPool(5, 5, TimeUnit.MINUTES))
-          .addInterceptor(new LoggingInterceptor()).readTimeout(10, TimeUnit.MINUTES).build();
-  // private static final String serverUrl = "http://localhost:" + config.getServerPort();
-  private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-  private static final ObjectMapper objectMapper = new ObjectMapper();
 
-  private static LocalCorfuServer corfuServer;
+  // Receiver
+  private static ReplicationServiceConfiguration receiverConfig =
+      new ReplicationServiceConfiguration("localhost", 9002, 2,
+          Runtime.getRuntime().availableProcessors(), 15, 15, 9, ReplicationMode.RECEIVER,
+          "localhost", 9005, 5L, null);
+  private static ReplicationService receiverService =
+      ReplicationServiceBuilder.newBuilder().config(receiverConfig).build();
+
+  // Sender
+  private static ReplicationServiceConfiguration senderConfig =
+      new ReplicationServiceConfiguration("localhost", 8002, 2,
+          Runtime.getRuntime().availableProcessors(), 15, 15, 9, ReplicationMode.TRANSMITTER,
+          "localhost", 8005, 5L, "http://localhost:9002/service/replicator/");
+  private static ReplicationService senderService =
+      ReplicationServiceBuilder.newBuilder().config(senderConfig).build();
+
+  private static LocalCorfuServer corfuServerSender;
+
+  private static LocalCorfuServer corfuServerReceiver;
 
   @Test
-  public void testReplicator() throws Exception {
-    final Runnable work = new Runnable() {
-      public void run() {
-        try {
-          final HttpUrl url =
-              new HttpUrl.Builder().scheme("http").host("localhost").addPathSegment("service")
-                  .addPathSegment("replicator").port(config.getServerPort()).build();
-          ReplicationRequest replicationRequest = new ReplicationRequest();
-          replicationRequest.setRequestId(Math.random());
-          replicationRequest.setClientTstampMillis(System.currentTimeMillis());
-          String requestJson = objectMapper.writeValueAsString(replicationRequest);
-          RequestBody body = RequestBody.create(JSON, requestJson);
-          Request request = new Request.Builder().url(url)
-              .header(HttpHeaderNames.CONTENT_TYPE.toString(), "application/json")
-              // .header(HttpHeaderNames.CONNECTION.toString(), "close")
-              .header(HttpHeaderNames.ORIGIN.toString(), "localhost").post(body).build();
-          Response response = client.newCall(request).execute();
-          assertEquals(200, response.code());
+  public void testReplication() throws Exception {
+    // 1. setup Receiver mode server in a thread with its own http, corfu servers
 
-          request = new Request.Builder().url(url)
-              .header(HttpHeaderNames.CONTENT_TYPE.toString(), "application/json")
-              .header("Origin", "localhost").get().build();
-          response = client.newCall(request).execute();
-          assertEquals(200, response.code());
-          ReplicationResponse replicationResponse =
-              objectMapper.readValue(response.body().bytes(), ReplicationResponse.class);
-          assertNotNull(replicationResponse);
-          assertTrue(replicationResponse.getServerTstampMillis() != 0);
-        } catch (Exception fooBar) {
-          logger.error(fooBar);
-        }
-      }
-    };
-    int workerCount = 40;
-    Thread[] workers = new Thread[workerCount];
-    for (int iter = 0; iter < workerCount; iter++) {
-      Thread worker = new Thread(work, "client-" + iter);
-      workers[iter] = worker;
-      worker.start();
+    // 2. setup Send mode server in another thread with its own http, corfu servers - give sender
+    // the receiver http address for streaming
+
+    // 3. use local corfu of Send mode server to push log events
+    CorfuDelegate senderCorfuDelegate = new CorfuDelegate();
+    senderCorfuDelegate.init(senderConfig.getCorfuHost(), senderConfig.getCorfuPort());
+    int eventCount = 10;
+    final List<LogEvent> events = new ArrayList<>(eventCount);
+    for (int iter = 0; iter < eventCount; iter++) {
+      LogEvent event = new LogEvent();
+      event.setClientTstamp(System.nanoTime());
+      event.setComponent(Component.HTTP_SERVER);
+      event.setStatus(Status.UP);
+      events.add(event);
     }
-    for (Thread worker : workers) {
-      worker.join();
-    }
+    logger.info(String.format("Pumping %d test replication events", eventCount));
+    senderCorfuDelegate.saveEvents(events);
+
+    // 4. breather for Receiver to receive and save events (apply log)
+    Thread.sleep(15_000L);
   }
+
+  /*
+   * @Test public void testPushReplicator() throws Exception { final Runnable work = new Runnable()
+   * { public void run() { try { final HttpUrl url = new
+   * HttpUrl.Builder().scheme("http").host("localhost").addPathSegment("service")
+   * .addPathSegment("replicator").port(senderConfig.getServerPort()).build(); // hydrate with many
+   * events ReplicationRequest replicationRequest = new ReplicationRequest();
+   * replicationRequest.setRequestId(Math.random()); int eventCount = 10; final List<LogEvent>
+   * events = new ArrayList<>(eventCount); for (int iter = 0; iter < eventCount; iter++) { LogEvent
+   * event = new LogEvent(); event.setClientTstamp(System.nanoTime());
+   * event.setComponent(Component.HTTP_SERVER); event.setStatus(Status.UP); events.add(event); }
+   * replicationRequest.setEvents(events);
+   * 
+   * String requestJson = objectMapper.writeValueAsString(replicationRequest); RequestBody body =
+   * RequestBody.create(JSON, requestJson); Request request = new Request.Builder().url(url)
+   * .header(HttpHeaderNames.CONTENT_TYPE.toString(), "application/json") //
+   * .header(HttpHeaderNames.CONNECTION.toString(), "close")
+   * .header(HttpHeaderNames.ORIGIN.toString(), "localhost").post(body).build(); Response response =
+   * client.newCall(request).execute(); assertEquals(200, response.code());
+   * 
+   * request = new Request.Builder().url(url) .header(HttpHeaderNames.CONTENT_TYPE.toString(),
+   * "application/json") .header("Origin", "localhost").get().build(); response =
+   * client.newCall(request).execute(); assertEquals(200, response.code()); ReplicationResponse
+   * replicationResponse = objectMapper.readValue(response.body().bytes(),
+   * ReplicationResponse.class); assertNotNull(replicationResponse);
+   * assertTrue(replicationResponse.getServerTstampMillis() != 0); } catch (Exception fooBar) {
+   * logger.error(fooBar); } } }; int workerCount = 1; Thread[] workers = new Thread[workerCount];
+   * for (int iter = 0; iter < workerCount; iter++) { Thread worker = new Thread(work, "client-" +
+   * iter); workers[iter] = worker; worker.start(); } for (Thread worker : workers) { worker.join();
+   * } Thread.sleep(15_000L); }
+   */
 
   @BeforeClass
   public static void init() throws Exception {
     try {
-      corfuServer = new LocalCorfuServer(config.getCorfuHost(), config.getCorfuPort());
-      corfuServer.init();
-      assertTrue(corfuServer.isRunning());
+      // receiver init
+      logger.info("Bootstrapping Receiver");
+      corfuServerReceiver =
+          new LocalCorfuServer(receiverConfig.getCorfuHost(), receiverConfig.getCorfuPort());
+      corfuServerReceiver.init();
+      assertTrue(corfuServerReceiver.isRunning());
+      receiverService.start();
+      logger.info("Bootstrapped Receiver");
 
-      service.start();
+      // sender init
+      logger.info("Bootstrapping Sender");
+      corfuServerSender =
+          new LocalCorfuServer(senderConfig.getCorfuHost(), senderConfig.getCorfuPort());
+      corfuServerSender.init();
+      assertTrue(corfuServerSender.isRunning());
+      senderService.start();
+      logger.info("Bootstrapped Sender");
     } catch (IOException problem) {
       logger.error(problem);
     }
@@ -112,16 +133,23 @@ public class ReplicationServiceTest {
 
   @AfterClass
   public static void tini() throws Exception {
-    client.dispatcher().executorService().shutdown();
-    client.connectionPool().evictAll();
-    // client.cache().close();
-    if (service != null) {
-      service.stop();
+    // sender tini
+    if (senderService != null) {
+      senderService.stop();
     }
+    assertTrue(corfuServerSender.isRunning());
+    corfuServerSender.tini();
+    assertTrue(!corfuServerSender.isRunning());
+    logger.info("Successfully shutdown Sender");
 
-    assertTrue(corfuServer.isRunning());
-    corfuServer.tini();
-    assertTrue(!corfuServer.isRunning());
+    // receiver tini
+    if (receiverService != null) {
+      receiverService.stop();
+    }
+    assertTrue(corfuServerReceiver.isRunning());
+    corfuServerReceiver.tini();
+    assertTrue(!corfuServerReceiver.isRunning());
+    logger.info("Successfully shutdown Receiver");
   }
 
   static final class LoggingInterceptor implements Interceptor {

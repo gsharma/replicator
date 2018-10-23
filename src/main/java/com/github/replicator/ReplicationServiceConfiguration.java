@@ -9,6 +9,7 @@ package com.github.replicator;
  */
 public final class ReplicationServiceConfiguration {
   // receive service config
+  private final String serverHost;
   private final int serverPort;
   private final int serverThreadCount;
   private final int workerThreadCount;
@@ -27,10 +28,12 @@ public final class ReplicationServiceConfiguration {
   private final long replicationIntervalSeconds;
   private final String remoteServiceUrl;
 
-  public ReplicationServiceConfiguration(final int serverPort, final int serverThreadCount,
-      final int workerThreadCount, final int readerIdleTimeSeconds, final int writerIdleTimeSeconds,
-      final int compressionLevel, final ReplicationMode mode, final String corfuHost,
-      final int corfuPort, final long replicationIntervalSeconds, final String remoteServiceUrl) {
+  public ReplicationServiceConfiguration(final String serverHost, final int serverPort,
+      final int serverThreadCount, final int workerThreadCount, final int readerIdleTimeSeconds,
+      final int writerIdleTimeSeconds, final int compressionLevel, final ReplicationMode mode,
+      final String corfuHost, final int corfuPort, final long replicationIntervalSeconds,
+      final String remoteServiceUrl) {
+    this.serverHost = serverHost;
     this.serverPort = serverPort;
     this.serverThreadCount = serverThreadCount;
     this.workerThreadCount = workerThreadCount;
@@ -42,6 +45,10 @@ public final class ReplicationServiceConfiguration {
     this.corfuPort = corfuPort;
     this.replicationIntervalSeconds = replicationIntervalSeconds;
     this.remoteServiceUrl = remoteServiceUrl;
+  }
+
+  String getServerHost() {
+    return serverHost;
   }
 
   int getServerPort() {
@@ -91,9 +98,10 @@ public final class ReplicationServiceConfiguration {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("Configuration [mode=").append(mode).append(", serverPort=").append(serverPort)
-        .append(", serverThreadCount=").append(serverThreadCount).append(", workerThreadCount=")
-        .append(workerThreadCount).append(", readerIdleTimeSeconds=").append(readerIdleTimeSeconds)
+    builder.append("Configuration [mode=").append(mode).append(", serverHost=").append(serverHost)
+        .append(", serverPort=").append(serverPort).append(", serverThreadCount=")
+        .append(serverThreadCount).append(", workerThreadCount=").append(workerThreadCount)
+        .append(", readerIdleTimeSeconds=").append(readerIdleTimeSeconds)
         .append(", writerIdleTimeSeconds=").append(writerIdleTimeSeconds)
         .append(", compressionLevel=").append(compressionLevel).append(", corfuHost=")
         .append(corfuHost).append(", corfuPort=").append(corfuPort)
