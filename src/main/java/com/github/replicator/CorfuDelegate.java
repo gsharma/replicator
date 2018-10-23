@@ -41,6 +41,7 @@ public final class CorfuDelegate {
   private CorfuRuntime runtime =
       CorfuRuntime.fromParameters(parameters).setTransactionLogging(true);
 
+  private ReplicationServiceConfiguration config;
   private String host;
   private int port;
   private final long emptyStreamOffset = -6L;
@@ -52,10 +53,11 @@ public final class CorfuDelegate {
   /**
    * Initialize the delegate
    */
-  public boolean init(String host, int port) {
+  public boolean init(final ReplicationServiceConfiguration config) {
     logger.info(String.format("Boostrapping corfu delegate to connect to %s:%d", host, port));
-    this.host = host;
-    this.port = port;
+    this.config = config;
+    this.host = config.getCorfuHost();
+    this.port = config.getCorfuPort();
     runtime.parseConfigurationString(host + ":" + port);
     runtime = runtime.connect();
     boolean connectionStatus = false;
@@ -102,14 +104,23 @@ public final class CorfuDelegate {
       return events;
     }
 
+    //
     // TODO: startOffset should be configurable to allow the replicator to shutdown and resume from
     // either the last streamed offset or a chosen offset of interest
     long startOffset = 0;
     globalStreamOffsets.putIfAbsent(LogEvent.STREAM_NAME, 0L);
     startOffset = globalStreamOffsets.get(LogEvent.STREAM_NAME);
+
+    long highWatermark = 0;
+    if (tailOffset - startOffset > config.getReplicationStreamDepth()) {
+      highWatermark = startOffset + config.getReplicationStreamDepth();
+    } else {
+      highWatermark = tailOffset;
+    }
+
     logger.info(String.format("Fetching events from stream:%s, offsets::start:%d, end:%d",
-        LogEvent.STREAM_NAME, startOffset, tailOffset));
-    final List<ILogData> eventsInLog = streamView.remainingUpTo(tailOffset);
+        LogEvent.STREAM_NAME, startOffset, highWatermark));
+    final List<ILogData> eventsInLog = streamView.remainingUpTo(highWatermark);
     if (eventsInLog != null) {
       for (ILogData eventInLog : eventsInLog) {
         try {
@@ -124,7 +135,7 @@ public final class CorfuDelegate {
         }
       }
     }
-    globalStreamOffsets.put(LogEvent.STREAM_NAME, tailOffset);
+    globalStreamOffsets.put(LogEvent.STREAM_NAME, highWatermark);
     return events;
   }
 

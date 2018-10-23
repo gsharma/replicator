@@ -89,7 +89,7 @@ final class ReplicationServiceImpl implements ReplicationService {
     // fsm.transitionTo(fsmFlowId, ServiceState.starting);
 
     corfuDelegate = new CorfuDelegate();
-    corfuDelegate.init(config.getCorfuHost(), config.getCorfuPort());
+    corfuDelegate.init(config);
 
     // TODO: handle args
     int serverThreadCount = config.getServerThreadCount();

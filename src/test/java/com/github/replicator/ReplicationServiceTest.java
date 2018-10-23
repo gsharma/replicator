@@ -33,7 +33,7 @@ public class ReplicationServiceTest {
   private static ReplicationServiceConfiguration receiverConfig =
       new ReplicationServiceConfiguration("localhost", 9002, 2,
           Runtime.getRuntime().availableProcessors(), 15, 15, 9, ReplicationMode.RECEIVER,
-          "localhost", 9005, 5L, null);
+          "localhost", 9005, 5L, 0L, 9, null);
   private static ReplicationService receiverService =
       ReplicationServiceBuilder.newBuilder().config(receiverConfig).build();
 
@@ -41,7 +41,7 @@ public class ReplicationServiceTest {
   private static ReplicationServiceConfiguration senderConfig =
       new ReplicationServiceConfiguration("localhost", 8002, 2,
           Runtime.getRuntime().availableProcessors(), 15, 15, 9, ReplicationMode.TRANSMITTER,
-          "localhost", 8005, 5L, "http://localhost:9002/service/replicator/");
+          "localhost", 8005, 5L, 0L, 9, "http://localhost:9002/service/replicator/");
   private static ReplicationService senderService =
       ReplicationServiceBuilder.newBuilder().config(senderConfig).build();
 
@@ -58,8 +58,8 @@ public class ReplicationServiceTest {
 
     // 3. use local corfu of Send mode server to push log events
     CorfuDelegate senderCorfuDelegate = new CorfuDelegate();
-    senderCorfuDelegate.init(senderConfig.getCorfuHost(), senderConfig.getCorfuPort());
-    int eventCount = 10;
+    senderCorfuDelegate.init(senderConfig);
+    int eventCount = 30;
     final List<LogEvent> events = new ArrayList<>(eventCount);
     for (int iter = 0; iter < eventCount; iter++) {
       LogEvent event = new LogEvent();
@@ -72,7 +72,7 @@ public class ReplicationServiceTest {
     senderCorfuDelegate.saveEvents(events);
 
     // 4. breather for Receiver to receive and save events (apply log)
-    Thread.sleep(15_000L);
+    Thread.sleep(30_000L);
   }
 
   /*

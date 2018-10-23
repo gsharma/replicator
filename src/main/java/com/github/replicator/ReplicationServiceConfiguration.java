@@ -8,7 +8,7 @@ package com.github.replicator;
  * @author gaurav
  */
 public final class ReplicationServiceConfiguration {
-  // receive service config
+  // receiver or sender service config
   private final String serverHost;
   private final int serverPort;
   private final int serverThreadCount;
@@ -24,14 +24,20 @@ public final class ReplicationServiceConfiguration {
   private final String corfuHost;
   private final int corfuPort;
 
-  // remote service config
+  // streamer config
+  private final long streamStartOffset;
   private final long replicationIntervalSeconds;
+  private final int replicationStreamDepth;
+
+  // remote service config
   private final String remoteServiceUrl;
 
+  // TODO: switch this fugly ctor to a builder/fluent style
   public ReplicationServiceConfiguration(final String serverHost, final int serverPort,
       final int serverThreadCount, final int workerThreadCount, final int readerIdleTimeSeconds,
       final int writerIdleTimeSeconds, final int compressionLevel, final ReplicationMode mode,
       final String corfuHost, final int corfuPort, final long replicationIntervalSeconds,
+      final long streamStartOffset, final int replicationStreamDepth,
       final String remoteServiceUrl) {
     this.serverHost = serverHost;
     this.serverPort = serverPort;
@@ -40,10 +46,16 @@ public final class ReplicationServiceConfiguration {
     this.readerIdleTimeSeconds = readerIdleTimeSeconds;
     this.writerIdleTimeSeconds = writerIdleTimeSeconds;
     this.compressionLevel = compressionLevel;
+
     this.mode = mode;
+
     this.corfuHost = corfuHost;
     this.corfuPort = corfuPort;
+
+    this.streamStartOffset = streamStartOffset;
     this.replicationIntervalSeconds = replicationIntervalSeconds;
+    this.replicationStreamDepth = replicationStreamDepth;
+
     this.remoteServiceUrl = remoteServiceUrl;
   }
 
@@ -87,8 +99,16 @@ public final class ReplicationServiceConfiguration {
     return mode;
   }
 
+  public long getStreamStartOffset() {
+    return streamStartOffset;
+  }
+
   public long getReplicationIntervalSeconds() {
     return replicationIntervalSeconds;
+  }
+
+  public int getReplicationStreamDepth() {
+    return replicationStreamDepth;
   }
 
   public String getRemoteServiceUrl() {
@@ -104,9 +124,11 @@ public final class ReplicationServiceConfiguration {
         .append(", readerIdleTimeSeconds=").append(readerIdleTimeSeconds)
         .append(", writerIdleTimeSeconds=").append(writerIdleTimeSeconds)
         .append(", compressionLevel=").append(compressionLevel).append(", corfuHost=")
-        .append(corfuHost).append(", corfuPort=").append(corfuPort)
-        .append(", replicationIntervalSecs=").append(replicationIntervalSeconds)
-        .append(", remoteServiceUrl=").append(remoteServiceUrl).append("]");
+        .append(corfuHost).append(", corfuPort=").append(corfuPort).append(", streamStartOffset=")
+        .append(streamStartOffset).append(", replicationIntervalSecs=")
+        .append(replicationIntervalSeconds).append(", replicationStreamDepth=")
+        .append(replicationStreamDepth).append(", remoteServiceUrl=").append(remoteServiceUrl)
+        .append("]");
     return builder.toString();
   }
 
