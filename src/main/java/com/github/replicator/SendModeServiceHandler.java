@@ -99,6 +99,10 @@ final class SendModeServiceHandler {
       Response response = client.newCall(request).execute();
       logger.info(response);
 
+      // TODO: depending on the failure modes, we should/could retry. On persistent and hard
+      // failures, we also need rollback the stream to allow re-fetching of these previously fetched
+      // events.
+
       // TODO: parse response
       // int responseCode = response.code();
       // ReplicationResponse replicationResponse =
