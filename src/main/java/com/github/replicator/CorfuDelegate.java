@@ -44,6 +44,7 @@ public final class CorfuDelegate {
   private String host;
   private int port;
   private final long emptyStreamOffset = -6L;
+  // we should push the last set of already streamed offsets to disk
   private final ConcurrentMap<String, Long> globalStreamOffsets =
       new ConcurrentHashMap<String, Long>();
   private final ConcurrentMap<UUID, IStreamView> allStreamViews = new ConcurrentHashMap<>();
