@@ -43,6 +43,7 @@ public final class LocalCorfuServer {
         setName("Local Corfu Server");
       }
 
+      @Override
       public void run() {
         serverLoop(serverOptions);
       }
@@ -85,14 +86,13 @@ public final class LocalCorfuServer {
         Arrays.asList(baseServer, sequencerServer, layoutServer, logUnitServer, managementServer));
     context.setServerRouter(router);
     try {
-      // logger.info("Starting local corfu server at port " + port);
       running = true;
       CorfuServer.startAndListen(context.getBossGroup(), context.getWorkerGroup(),
           (bs) -> CorfuServer.configureBootstrapOptions(context, bs), context, router, address,
-          port).channel().closeFuture().sync().get(); // To make ErrorProne checker happy.
-    } catch (InterruptedException e) {
-    } catch (Exception e) {
-      throw new RuntimeException("Error while running server", e);
+          port).channel().closeFuture().sync().get();
+    } catch (InterruptedException interrupted) {
+    } catch (Exception problem) {
+      throw new RuntimeException("Error while running server", problem);
     } finally {
       if (running) {
         logger.info("Shutting down local corfu server loop");
@@ -103,29 +103,30 @@ public final class LocalCorfuServer {
 
   private Map<String, Object> defaultServerOptions() {
     final Map<String, Object> options = new HashMap<>();
+    options.put("--log-path", null);
+    options.put("--single", true);
+    options.put("--cluster-id", "auto");
+    options.put("--Threads", "0");
+    options.put("--Prefix", "");
     options.put("--address", host);
     options.put("<port>", Integer.toString(port));
     options.put("--network-interface", null);
-    options.put("--memory", true);
-    options.put("--single", true);
-    options.put("--enable-tls", false);
     options.put("--implementation", "nio");
-    options.put("--Prefix", "");
-    options.put("--Threads", "0");
-    options.put("--cluster-id", "auto");
+    options.put("--memory", true);
     options.put("--cache-heap-ratio", "0.5");
+    options.put("--HandshakeTimeout", "10");
+    options.put("--initial-token", "-1");
+    options.put("--sequencer-cache-size", "250000");
+    options.put("--batch-size", "100");
+    options.put("--compact", "600");
     options.put("--log-level", "INFO");
+    options.put("--management-server", null);
+    options.put("--no-verify", false);
+    options.put("--enable-tls", false);
     options.put("--enable-sasl-plain-text-auth", false);
     options.put("--sasl-plain-text-username-file", null);
     options.put("--sasl-plain-text-password-file", null);
-    // options.put("--compact", "60");
-    options.put("--HandshakeTimeout", "10");
-    options.put("--sequencer-cache-size", "250000");
-    options.put("--initial-token", "-1");
-    options.put("--log-path", null);
-    options.put("--no-verify", false);
     options.put("--agent", false);
-    options.put("--management-server", null);
     return options;
   }
 }

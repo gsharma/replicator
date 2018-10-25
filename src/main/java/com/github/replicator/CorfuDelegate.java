@@ -60,6 +60,8 @@ public final class CorfuDelegate {
     this.port = config.getCorfuPort();
     runtime.parseConfigurationString(host + ":" + port);
     runtime = runtime.connect();
+    logger.info(runtime.getStreamsView().getCurrentLayout().toString());
+    logger.info(runtime.getLayoutView().getRuntimeLayout().toString());
     boolean connectionStatus = false;
     if (!runtime.isShutdown()) {
       connectionStatus = true;
@@ -83,7 +85,13 @@ public final class CorfuDelegate {
     allStreamViews.putIfAbsent(streamId, runtime.getStreamsView().get(streamId));
     final IStreamView streamView = allStreamViews.get(streamId);
     final long tailOffsetBefore = tailOffset(streamId);
-    streamView.append(LogEvent.jsonSerialize(event));
+    final byte[] flattenedEvent = LogEvent.jsonSerialize(event);
+    runtime.getObjectsView().TXBegin();
+    try {
+      streamView.append(flattenedEvent);
+    } finally {
+      runtime.getObjectsView().TXEnd();
+    }
     // streamView.append(LogEvent.serialize(event));
     final long tailOffsetAfter = tailOffset(streamId);
     logger.info(String.format("stream:%s, offsets::pre:%d, post:%d, saved %s", LogEvent.STREAM_NAME,
@@ -120,9 +128,15 @@ public final class CorfuDelegate {
 
     logger.info(String.format("Fetching events from stream:%s, offsets::start:%d, end:%d",
         LogEvent.STREAM_NAME, startOffset, highWatermark));
-    final List<ILogData> eventsInLog = streamView.remainingUpTo(highWatermark);
+    List<ILogData> eventsInLog = null;
+    runtime.getObjectsView().TXBegin();
+    try {
+      eventsInLog = streamView.remainingUpTo(highWatermark);
+    } finally {
+      runtime.getObjectsView().TXEnd();
+    }
     if (eventsInLog != null) {
-      for (ILogData eventInLog : eventsInLog) {
+      for (final ILogData eventInLog : eventsInLog) {
         try {
           final byte[] serializedEvent = (byte[]) eventInLog.getPayload(runtime);
           final LogEvent readEvent = LogEvent.jsonDeserialize(serializedEvent);
@@ -151,15 +165,16 @@ public final class CorfuDelegate {
   }
 
   private long tailOffset(final UUID streamId) {
-    final TokenResponse response =
-        runtime.getSequencerView().nextToken(Collections.singleton(streamId), 0);
+    final TokenResponse response = runtime.getSequencerView().query(streamId);
     return response.getTokenValue();
   }
 
   public boolean tini() {
-    logger.info(String.format("Shutting down corfu delegate connected to %s:%d", host, port));
-    runtime.shutdown();
     boolean shutdownStatus = false;
+    logger.info(String.format("Shutting down corfu delegate connected to %s:%d", host, port));
+    logger.info(runtime.getStreamsView().getCurrentLayout().toString());
+    logger.info(runtime.getLayoutView().getRuntimeLayout().toString());
+    runtime.shutdown();
     if (runtime.isShutdown()) {
       shutdownStatus = true;
       logger.info(
