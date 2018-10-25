@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.corfudb.protocols.wireprotocol.DataType;
 import org.corfudb.protocols.wireprotocol.ILogData;
 import org.corfudb.protocols.wireprotocol.TokenResponse;
 import org.corfudb.runtime.CorfuRuntime;
@@ -137,6 +138,11 @@ public final class CorfuDelegate {
     }
     if (eventsInLog != null) {
       for (final ILogData eventInLog : eventsInLog) {
+        final DataType type = eventInLog.getType();
+        if (type != DataType.DATA) {
+          logger.info(String.format("Skipping %s log event", type));
+          continue;
+        }
         try {
           final byte[] serializedEvent = (byte[]) eventInLog.getPayload(runtime);
           final LogEvent readEvent = LogEvent.jsonDeserialize(serializedEvent);
@@ -166,6 +172,9 @@ public final class CorfuDelegate {
 
   private long tailOffset(final UUID streamId) {
     final TokenResponse response = runtime.getSequencerView().query(streamId);
+    if (logger.isDebugEnabled()) {
+      logger.debug(response);
+    }
     return response.getTokenValue();
   }
 
