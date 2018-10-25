@@ -65,6 +65,7 @@ final class ReplicationServiceImpl implements ReplicationService {
 
   private static final AtomicInteger currentActiveConnectionCount = new AtomicInteger();
   private static final AtomicLong allAcceptedConnectionCount = new AtomicLong();
+  private static final AtomicLong allConnectionIdleTimeoutCount = new AtomicLong();
 
   ReplicationServiceImpl(final ReplicationServiceConfiguration config) {
     this.config = config;
@@ -173,8 +174,10 @@ final class ReplicationServiceImpl implements ReplicationService {
     logger.info(String.format("Shutting down Replication Service in %s mode at %s:%d",
         config.getMode(), config.getServerHost(), config.getServerPort()));
 
-    logger.info(String.format("Current active connections:%d, All accepted connections:%d",
-        currentActiveConnectionCount.get(), allAcceptedConnectionCount.get()));
+    logger.info(String.format(
+        "Connection stats::{current-active:%d, all-accepted:%d, all-idle-timeouts:%d}",
+        currentActiveConnectionCount.get(), allAcceptedConnectionCount.get(),
+        allConnectionIdleTimeoutCount.get()));
 
     if (httpChannel != null) {
       httpChannel.close();
@@ -246,12 +249,12 @@ final class ReplicationServiceImpl implements ReplicationService {
        * 3. Our chosen handler contract leverages FullHttpRequest flowing through the entire
        * pipeline.
        */
-      final ConnectionMetricHandler connectionMetricHandler =
-          new ConnectionMetricHandler(currentActiveConnectionCount, allAcceptedConnectionCount);
+      final ConnectionMetricHandler connectionMetricHandler = new ConnectionMetricHandler(
+          currentActiveConnectionCount, allAcceptedConnectionCount, allConnectionIdleTimeoutCount);
       pipeline.addLast("0", new IdleStateHandler(config.getReaderIdleTimeSeconds(),
-          config.getWriterIdleTimeSeconds(), 30));
+          config.getWriterIdleTimeSeconds(), 0));
       pipeline.addLast("1", connectionMetricHandler);
-      pipeline.addLast("2", new HttpServerCodec(4096, 8192, 8192));
+      pipeline.addLast("2", new HttpServerCodec(16384, 32768, 32768));
       pipeline.addLast("3", new HttpObjectAggregator(65535));
       pipeline.addLast("4", new HttpContentCompressor(config.getCompressionLevel()));
 

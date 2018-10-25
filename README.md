@@ -1,18 +1,35 @@
 # Replicator
 
 ## Background
-The Replicator is an automaton to provide asynchronous streaming replication between potentially geographically distributed datastore instances. It is a lower-than-application-level data sync-service that can run in either the transmit or receive mode as a side-car standalone process on either side. Both the transmitter/streamer and receiver are implemented to use non-blocking I/O over HTTP.
+The Replicator is an automaton to provide asynchronous streaming replication between potentially geographically distributed datastore instances. It is a lower-than-application-level data sync-service that can run in one of transmit, receive or transceive modes as a side-car standalone process on either side of a LAN or WAN-based transport. Both the transmitter/streamer and receiver are implemented to use non-blocking I/O over HTTP. The replication protocol as designed, is independent of the choice of the underlying data-store it is implemented on. For the initial phase, the replicator spans [Corfu](https://github.com/CorfuDB/CorfuDB) db clusters spread across multiple remote sites.
+
+## Protocol
+### Negotiation Phase
+todo::
+
+### Sync Phase
+todo::
+keep an in-memory map of last streamed offset for every stream of interest
+keep a sliding window of processed offsets on receiver side
+
+### Recovery Phase
+todo::
+Transmitter Failure handling
+Receiver Failure handling
 
 ## Key Design Concerns
 
 ### Do No Evil Modes
 The Replicator provides no support for Byzantine fault tolerance. At the moment, the Replicator assumes Fail-Stop mode of operation. It keeps with the design tenet of simplicity and debug-ability.
 
+### Fire-and-Forget Transmitters
+todo::
+
 ### Transports
 Transports are easily pluggable for the most part but practical concerns dictate a deliberate preference towards using HTTP over WAN.
 
 ### Replicator FSM
-The Replicator itself is trivially an Automaton and wiring for [FSM](https://github.com/gsharma/state-machine) is sprinkled throughout the core service pieces. My FSM implementation is Java9 based and hence temporarily fenced off until such time that the Replicator can be upgraded, as well.
+The Replicator itself is trivially an Automaton and wiring for [FSM](https://github.com/gsharma/state-machine) is sprinkled throughout the core service pieces. My FSM implementation is Java9 based and hence temporarily fenced off until such time that the Replicator can be upgraded, as well. The FSM will help with the replication stages - eg. bootstrapping, remote channel establishment, handshaking/negotiation of streams to sync, lifecycle management, etc.
 
 ### Backpressure & Feedback Loops
 The streamer/sender cannot turn a blind eye to slow or down receivers and appropriately backs off or stops transmission until receiver health improves. Slow start type mechanisms are not implemented but the upper-bound on replication window-size prevents thundering herd type floods against new or just-recovered receivers.
@@ -49,7 +66,7 @@ mvn clean install;
 ```
 
 ### Replicator Modes
-Replicator can run in one of 2 modes - TRANSMITTER or RECEIVER. The ReplicationMode is settable in config along with a plethora of other options.
+Replicator can run in one of 3 modes - TRANSMITTER, RECEIVER, TRANSCEIVER. The ReplicationMode is settable in config along with a plethora of other options.
 
 ### Configuration Options
 There are many knobs available to tweak the replicator's behavior and performance.

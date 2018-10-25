@@ -32,7 +32,7 @@ public class ReplicationServiceTest {
   // Receiver
   private static ReplicationServiceConfiguration receiverConfig =
       new ReplicationServiceConfiguration("localhost", 9002, 2,
-          Runtime.getRuntime().availableProcessors(), 15, 15, 9, ReplicationMode.RECEIVER,
+          Runtime.getRuntime().availableProcessors(), 120, 120, 9, ReplicationMode.RECEIVER,
           "localhost", 9005, 5L, 0L, 9, null);
   private static ReplicationService receiverService =
       ReplicationServiceBuilder.newBuilder().config(receiverConfig).build();
