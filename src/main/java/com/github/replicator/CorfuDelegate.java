@@ -1,9 +1,9 @@
 package com.github.replicator;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -87,12 +87,12 @@ public final class CorfuDelegate {
     final IStreamView streamView = allStreamViews.get(streamId);
     final long tailOffsetBefore = tailOffset(streamId);
     final byte[] flattenedEvent = LogEvent.jsonSerialize(event);
-    runtime.getObjectsView().TXBegin();
-    try {
-      streamView.append(flattenedEvent);
-    } finally {
-      runtime.getObjectsView().TXEnd();
-    }
+    // runtime.getObjectsView().TXBegin();
+    // try {
+    streamView.append(flattenedEvent);
+    // } finally {
+    // runtime.getObjectsView().TXEnd();
+    // }
     // streamView.append(LogEvent.serialize(event));
     final long tailOffsetAfter = tailOffset(streamId);
     logger.info(String.format("stream:%s, offsets::pre:%d, post:%d, saved %s", LogEvent.STREAM_NAME,
@@ -129,20 +129,28 @@ public final class CorfuDelegate {
 
     logger.info(String.format("Fetching events from stream:%s, offsets::start:%d, end:%d",
         LogEvent.STREAM_NAME, startOffset, highWatermark));
-    List<ILogData> eventsInLog = null;
-    runtime.getObjectsView().TXBegin();
-    try {
-      eventsInLog = streamView.remainingUpTo(highWatermark);
-    } finally {
-      runtime.getObjectsView().TXEnd();
-    }
+    final List<ILogData> eventsInLog = streamView.remainingUpTo(highWatermark);
+
     if (eventsInLog != null) {
       for (final ILogData eventInLog : eventsInLog) {
-        final DataType type = eventInLog.getType();
-        if (type != DataType.DATA) {
-          logger.info(String.format("Skipping %s log event", type));
+        if (eventInLog == null) {
           continue;
         }
+        final DataType type = eventInLog.getType();
+        // final LogEntry logEntry = eventInLog.getLogEntry(runtime);
+        // logger.info(eventInLog.getLogEntry(runtime));
+        if (type != DataType.DATA) {
+          logger.info(String.format("Skipping %s log event, offset:%d", type,
+              eventInLog.getGlobalAddress()));
+          continue;
+        }
+        final Set<UUID> streamIds = eventInLog.getStreams();
+        if (!allStreamViews.keySet().containsAll(streamIds)) {
+          logger.info(String.format("Unknown streams detected for log event, offset %d",
+              eventInLog.getGlobalAddress()));
+          continue;
+        }
+        // logger.info("event address:" + eventInLog.getGlobalAddress());
         try {
           final byte[] serializedEvent = (byte[]) eventInLog.getPayload(runtime);
           final LogEvent readEvent = LogEvent.jsonDeserialize(serializedEvent);

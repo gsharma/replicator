@@ -142,48 +142,8 @@
   <build>
     <plugins>
       <!-- enforcer -->
-      <!-- temp stopped enforcer due to corfu slf4j version variations that need to be fixed -->
-      <!--
-      +-com.github.replicator:replicator:1.0-SNAPSHOT
-        +-org.corfudb:runtime:0.2.0-SNAPSHOT
-          +-org.corfudb:format:0.2.0-SNAPSHOT
-            +-org.slf4j:slf4j-api:1.7.6
-      and
-      +-com.github.replicator:replicator:1.0-SNAPSHOT
-        +-org.corfudb:runtime:0.2.0-SNAPSHOT
-          +-org.corfudb:annotations:0.2.0-SNAPSHOT
-            +-org.slf4j:slf4j-api:1.7.6
-      and
-      +-com.github.replicator:replicator:1.0-SNAPSHOT
-        +-org.corfudb:runtime:0.2.0-SNAPSHOT
-          +-org.corfudb:annotationProcessor:0.2.0-SNAPSHOT
-            +-org.slf4j:slf4j-api:1.7.6
-      and
-      +-com.github.replicator:replicator:1.0-SNAPSHOT
-        +-org.corfudb:runtime:0.2.0-SNAPSHOT
-          +-io.dropwizard.metrics:metrics-core:3.1.0
-            +-org.slf4j:slf4j-api:1.7.7
-      and
-      +-com.github.replicator:replicator:1.0-SNAPSHOT
-        +-org.corfudb:runtime:0.2.0-SNAPSHOT
-          +-io.dropwizard.metrics:metrics-jvm:3.1.0
-            +-org.slf4j:slf4j-api:1.7.7
-      and
-      +-com.github.replicator:replicator:1.0-SNAPSHOT
-        +-org.corfudb:runtime:0.2.0-SNAPSHOT
-          +-org.slf4j:slf4j-api:1.7.6
-      and
-      +-com.github.replicator:replicator:1.0-SNAPSHOT
-        +-org.corfudb:infrastructure:0.2.0-SNAPSHOT
-          +-ch.qos.logback:logback-classic:1.2.3
-            +-org.slf4j:slf4j-api:1.7.25
-      and
-      +-com.github.replicator:replicator:1.0-SNAPSHOT
-        +-org.corfudb:infrastructure:0.2.0-SNAPSHOT
-          +-org.slf4j:slf4j-api:1.7.6
-      -->
-
-      <!--<plugin>
+      <!-- temp stopped enforcer:enforce to fail compilation due to corfu slf4j version variations that need to be fixed -->
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
         <version>1.4.1</version>
@@ -194,13 +154,14 @@
               <rules>
                 <dependencyConvergence/>
               </rules>
+              <fail>false</fail>
             </configuration>
             <goals>
               <goal>enforce</goal>
             </goals>
           </execution>
         </executions>
-      </plugin>-->
+      </plugin>
 
       <!-- compiler -->
       <plugin>
