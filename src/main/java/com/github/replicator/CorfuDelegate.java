@@ -2,6 +2,7 @@ package com.github.replicator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -10,6 +11,9 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.corfudb.protocols.logprotocol.SMREntry;
+import org.corfudb.protocols.logprotocol.MultiObjectSMREntry;
+import org.corfudb.protocols.logprotocol.MultiSMREntry;
 import org.corfudb.protocols.wireprotocol.DataType;
 import org.corfudb.protocols.wireprotocol.ILogData;
 import org.corfudb.protocols.wireprotocol.TokenResponse;
@@ -87,13 +91,8 @@ public final class CorfuDelegate {
     final IStreamView streamView = allStreamViews.get(streamId);
     final long tailOffsetBefore = tailOffset(streamId);
     final byte[] flattenedEvent = LogEvent.jsonSerialize(event);
-    // runtime.getObjectsView().TXBegin();
-    // try {
+    // TODO: check for supported types
     streamView.append(flattenedEvent);
-    // } finally {
-    // runtime.getObjectsView().TXEnd();
-    // }
-    // streamView.append(LogEvent.serialize(event));
     final long tailOffsetAfter = tailOffset(streamId);
     logger.info(String.format("stream:%s, offsets::pre:%d, post:%d, saved %s", LogEvent.STREAM_NAME,
         tailOffsetBefore, tailOffsetAfter, event));
@@ -150,12 +149,53 @@ public final class CorfuDelegate {
               eventInLog.getGlobalAddress()));
           continue;
         }
-        // logger.info("event address:" + eventInLog.getGlobalAddress());
+
         try {
-          final byte[] serializedEvent = (byte[]) eventInLog.getPayload(runtime);
-          final LogEvent readEvent = LogEvent.jsonDeserialize(serializedEvent);
-          // final LogEvent readEvent = LogEvent.deserialize(serializedEvent);
-          events.add(readEvent);
+          // It is important to note that in case of any custom types, the ILogData#getLogEntry()
+          // will blow up with a ClassCastException. This implies that even though the methodology
+          // below for checking the LogEntryType might be the right/clean way to check the log entry
+          // type, it does not always work in practice.
+          //
+          // final LogEntry logEntry = eventInLog.getLogEntry(runtime);
+          // final LogEntryType logEntryType = logEntry.getType();
+          // logger.info(String.format("Processing %s type log event", logEntryType));
+
+          /**
+           * TODO: add handlers for supported types
+           * 
+           * Payload types:<br/>
+           * 
+           * 1. NOP(0, LogEntry.class)<br/>
+           * 2. SMR(1, SMREntry.class)<br/>
+           * 3. MULTIOBJSMR(7, MultiObjectSMREntry.class)<br/>
+           * 4. MULTISMR(8, MultiSMREntry.class)<br/>
+           * 5. CHECKPOINT(10, CheckpointEntry.class)<br/>
+           * 6. Other custom types like byte[]<br/>
+           */
+          final Object eventPayload = eventInLog.getPayload(runtime);
+          if (eventPayload != null) {
+            // logger.info(String.format("Processing %s type log event",
+            // eventPayload.getClass().getSimpleName()));
+            LogEvent event = null;
+            final Class eventPayloadClass = eventPayload.getClass();
+            if (SupportedLogEntryType.BYTE_ARRAY.getClazz() == eventPayloadClass) {
+              final byte[] byteArrayEntry = (byte[]) eventPayload;
+              event = process(byteArrayEntry);
+            } else if (SupportedLogEntryType.MULTIOBJECT_SMR_ENTRY
+                .getClazz() == eventPayloadClass) {
+              final MultiObjectSMREntry multiObjectSMREntry = (MultiObjectSMREntry) eventPayload;
+              event = process(multiObjectSMREntry);
+            } else {
+              logger.warn(String.format("Skipping unsupported %s type log event, offset:%d",
+                  eventPayloadClass, eventInLog.getGlobalAddress()));
+            }
+            if (event != null) {
+              events.add(event);
+            }
+          } else {
+            logger.info(String.format("Skipping null payload %s log event, offset:%d", type,
+                eventInLog.getGlobalAddress()));
+          }
         } catch (Exception serdeIssue) {
           // serDe is almost always a bitch, don't just stall the pipeline when shit happens, plan
           // for repair operations
@@ -165,6 +205,35 @@ public final class CorfuDelegate {
     }
     globalStreamOffsets.put(LogEvent.STREAM_NAME, highWatermark);
     return events;
+  }
+
+  // handler for byte[] events
+  private static LogEvent process(final byte[] eventPayload) throws Exception {
+    final LogEvent event = LogEvent.jsonDeserialize(eventPayload);
+    return event;
+  }
+
+  // handler for MultiObjectSMREntry events
+  private static LogEvent process(final MultiObjectSMREntry eventPayload) throws Exception {
+    LogEvent event = null;
+    for (final Map.Entry<UUID, MultiSMREntry> entry : eventPayload.getEntryMap().entrySet()) {
+      final UUID entryStreamId = entry.getKey();
+      for (final SMREntry update : entry.getValue().getUpdates()) {
+        final String updateMethod = update.getSMRMethod();
+        final Object id = update.getSMRArguments()[0];
+        switch (updateMethod) {
+          case "put":
+            // do we care if this is an insert, update or upsert?
+            final Object value = update.getSMRArguments()[1];
+            // TODO: finish me
+            break;
+          case "remove":
+            // TODO: finish me
+            break;
+        }
+      }
+    }
+    return event;
   }
 
   /**
@@ -201,6 +270,22 @@ public final class CorfuDelegate {
           .info(String.format("Failed to shutdown corfu delegate connected to %s:%d", host, port));
     }
     return shutdownStatus;
+  }
+
+  // Supported LogEntry types
+  private enum SupportedLogEntryType {
+    BYTE_ARRAY(new byte[0].getClass()), SMR_ENTRY(SMREntry.class), MULTIOBJECT_SMR_ENTRY(
+        MultiObjectSMREntry.class), MULTI_SMR_ENTRY(MultiSMREntry.class);
+
+    public Class<?> getClazz() {
+      return clazz;
+    }
+
+    private Class<?> clazz;
+
+    private SupportedLogEntryType(final Class<?> clazz) {
+      this.clazz = clazz;
+    }
   }
 
 }
