@@ -5,9 +5,12 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.corfudb.runtime.collections.CorfuTable;
+import org.corfudb.util.serializer.Serializers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -71,10 +74,20 @@ public class ReplicationServiceTest {
     logger.info(String.format("Pumping %d test replication events", eventCount));
     senderCorfuDelegate.saveEvents(events);
 
+    final Map<LogEvent, String> testMap = getMap(senderCorfuDelegate, LogEvent.STREAM_NAME);
+    senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
+    testMap.put(new LogEvent(), "1");
+    testMap.put(new LogEvent(), "2");
+    senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
+
     // 4. breather for Receiver to receive and save events (apply log)
     Thread.sleep(30_000L);
   }
 
+  private <K, V> Map<K, V> getMap(final CorfuDelegate delegate, final String streamName) {
+    return delegate.getRuntime().getObjectsView().build().setType(CorfuTable.class)
+        .setStreamName(streamName).setSerializer(Serializers.JSON).open();
+  }
   /*
    * @Test public void testPushReplicator() throws Exception { final Runnable work = new Runnable()
    * { public void run() { try { final HttpUrl url = new

@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * 2. Corfu object classes must be top-level.<br>
  * 3. Corfu object constructors must be without parameters.<br>
  *
- * @author Gaurav
+ * @author gaurav
  */
 @CorfuObject
 public class LogEvent implements Serializable {

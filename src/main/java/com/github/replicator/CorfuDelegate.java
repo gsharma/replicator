@@ -19,6 +19,8 @@ import org.corfudb.protocols.wireprotocol.ILogData;
 import org.corfudb.protocols.wireprotocol.TokenResponse;
 import org.corfudb.runtime.CorfuRuntime;
 import org.corfudb.runtime.CorfuRuntime.CorfuRuntimeParameters;
+import org.corfudb.runtime.view.ObjectsView;
+import org.corfudb.runtime.view.StreamOptions;
 import org.corfudb.runtime.view.stream.IStreamView;
 
 /**
@@ -69,6 +71,7 @@ public final class CorfuDelegate {
     logger.info(runtime.getLayoutView().getRuntimeLayout().toString());
     boolean connectionStatus = false;
     if (!runtime.isShutdown()) {
+      initTransactionStream();
       connectionStatus = true;
       logger.info(String.format("Successfully bootstrapped corfu delegate to connect to %s:%d",
           host, port));
@@ -77,6 +80,18 @@ public final class CorfuDelegate {
           String.format("Failed to bootstrap corfu delegate to connect to %s:%d", host, port));
     }
     return connectionStatus;
+  }
+
+  /**
+   * Setup support for streaming from transaction_stream.
+   */
+  private void initTransactionStream() {
+    logger.info("Setting up to stream from transaction stream");
+    final StreamOptions options = new StreamOptions(true);
+    final IStreamView transactionStream =
+        runtime.getStreamsView().get(ObjectsView.TRANSACTION_STREAM_ID, options);
+    transactionStream.seek(0L);
+    allStreamViews.put(ObjectsView.TRANSACTION_STREAM_ID, transactionStream);
   }
 
   /**
@@ -145,8 +160,9 @@ public final class CorfuDelegate {
         }
         final Set<UUID> streamIds = eventInLog.getStreams();
         if (!allStreamViews.keySet().containsAll(streamIds)) {
-          logger.info(String.format("Unknown streams detected for log event, offset %d",
-              eventInLog.getGlobalAddress()));
+          logger.info(String.format(
+              "Unknown streams detected for log event:: expected:%s, observed:%s, offset %d",
+              allStreamViews.keySet(), streamIds, eventInLog.getGlobalAddress()));
           continue;
         }
 
@@ -184,6 +200,8 @@ public final class CorfuDelegate {
             } else if (SupportedLogEntryType.MULTIOBJECT_SMR_ENTRY
                 .getClazz() == eventPayloadClass) {
               final MultiObjectSMREntry multiObjectSMREntry = (MultiObjectSMREntry) eventPayload;
+              // logger.info(String.format("Encountered MultiObjectSMREntry log event, offset:%d",
+              // eventInLog.getGlobalAddress()));
               event = process(multiObjectSMREntry);
             } else {
               logger.warn(String.format("Skipping unsupported %s type log event, offset:%d",
@@ -221,6 +239,8 @@ public final class CorfuDelegate {
       for (final SMREntry update : entry.getValue().getUpdates()) {
         final String updateMethod = update.getSMRMethod();
         final Object id = update.getSMRArguments()[0];
+        logger.info(String.format("MultiObjectSMREntry::[op:[%s], k:[%s], v:[%s]]", updateMethod,
+            update.getSMRArguments()[0], update.getSMRArguments()[1]));
         switch (updateMethod) {
           case "put":
             // do we care if this is an insert, update or upsert?
@@ -253,6 +273,11 @@ public final class CorfuDelegate {
       logger.debug(response);
     }
     return response.getTokenValue();
+  }
+
+  // leak for testing
+  CorfuRuntime getRuntime() {
+    return runtime;
   }
 
   public boolean tini() {
