@@ -31,6 +31,12 @@ import org.corfudb.runtime.view.stream.IStreamView;
 public final class CorfuDelegate {
   private static final Logger logger = LogManager.getLogger(CorfuDelegate.class.getSimpleName());
 
+  // all Mutators, MutatorAccessors in 2 core collections: ISMRMap (its children) and CorfuTable
+  private final static String SMR_METHOD_PUT = "put";
+  private final static String SMR_METHOD_PUTALL = "putAll";
+  private final static String SMR_METHOD_REMOVE = "remove";
+  private final static String SMR_METHOD_CLEAR = "clear";
+
   /**
    * Default parameters: undoDisabled=false, optimisticUndoDisabled=false, maxWriteSize=0,
    * useFastLoader=false, bulkReadSize=10, fastLoaderTimeout=PT30M, holeFillRetry=10,
@@ -231,24 +237,41 @@ public final class CorfuDelegate {
     return event;
   }
 
-  // handler for MultiObjectSMREntry events
+  /**
+   * Handler for MultiObjectSMREntry events - handle all Mutators and MutatorAccessors in the 2 core
+   * collections: ISMRMap (its children) and CorfuTable.
+   */
   private static LogEvent process(final MultiObjectSMREntry eventPayload) throws Exception {
     LogEvent event = null;
     for (final Map.Entry<UUID, MultiSMREntry> entry : eventPayload.getEntryMap().entrySet()) {
       final UUID entryStreamId = entry.getKey();
-      for (final SMREntry update : entry.getValue().getUpdates()) {
-        final String updateMethod = update.getSMRMethod();
-        final Object id = update.getSMRArguments()[0];
-        logger.info(String.format("MultiObjectSMREntry::[op:[%s], k:[%s], v:[%s]]", updateMethod,
-            update.getSMRArguments()[0], update.getSMRArguments()[1]));
-        switch (updateMethod) {
-          case "put":
+      for (final SMREntry operation : entry.getValue().getUpdates()) {
+        final String opMethod = operation.getSMRMethod();
+        // for SMR_METHOD_CLEAR, both key and value will be null
+        final Object key =
+            operation.getSMRArguments().length > 0 ? operation.getSMRArguments()[0] : null;
+        final Class<?> keyClass = key != null ? key.getClass() : null;
+        // for SMR_METHOD_REMOVE, value will be null
+        final Object value =
+            operation.getSMRArguments().length > 1 ? operation.getSMRArguments()[1] : null;
+        final Class<?> valueClass = value != null ? value.getClass() : null;
+        logger.info(String.format("SMREntry::[method:[%s], key:[[%s][%s]], value:[[%s][%s]]]",
+            opMethod, keyClass, key, valueClass, value));
+        switch (opMethod) {
+          // TODO: finish me
+          case SMR_METHOD_PUT:
             // do we care if this is an insert, update or upsert?
-            final Object value = update.getSMRArguments()[1];
-            // TODO: finish me
             break;
-          case "remove":
-            // TODO: finish me
+          case SMR_METHOD_PUTALL:
+            break;
+          case SMR_METHOD_REMOVE:
+            break;
+          case SMR_METHOD_CLEAR:
+            break;
+          default:
+            logger.error(
+                String.format("Unhandled SMREntry::[method:[%s], key:[[%s][%s]], value:[[%s][%s]]]",
+                    opMethod, keyClass, key, valueClass, value));
             break;
         }
       }
