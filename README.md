@@ -14,7 +14,7 @@ Replicator running in Transmitter mode does not wait for any synchronous or asyn
 ### Transports
 Transports are easily pluggable for the most part but practical concerns dictate a deliberate preference towards using HTTP over WAN.
 
-### 	Automaton
+### Automaton
 The Replicator itself is trivially an Automaton and wiring for [FSM](https://github.com/gsharma/state-machine) is sprinkled throughout the core service pieces. My FSM implementation is Java9 based and hence temporarily fenced off until such time that the Replicator can be upgraded, as well. The FSM will help with the replication stages - eg. bootstrapping, remote channel establishment, handshaking/negotiation of streams to sync, lifecycle management, etc. Note that the FSM is typically best configured to reset itself to init state on failures - it can do that as a hard-reset or a step-wise state unrolling, the former being the preferred mode.
 
 ### Concurrency & Throughput
@@ -49,6 +49,12 @@ Recovery Phase is a logical-phase and not a real phase as modeled by the Replica
 
 ### Recovery Phase (RECEIVER)
 Recovery Phase on the RECEIVER is also a logical phase and proceeds in similar ways as described in the section on TRANSMITTER recovery. On recovery from failure, the Connection phase which terminates with channel establishment, can be initiated and reached from either the TRANSMITTER or RECEIVER replicators depending on the location of failure. Once the RECEIVER reaches the Sync phase, it is business as usual. 
+
+### Drain Phase
+In the happy path, the replicator needs to support graceful shutdown and running in any of the modes, needs to transition to draining phase to complete house-keeping tasks and reset its state to init before shutting down.
+
+### Failures
+Failure modes and handling them is more involved and will be covered in detail in a subsequent section.
 
 ### Transceiver Mode
 For channel #3 in the architecture diagram above, the replicator will function in the TRANSCEIVER mode and will be able to serve as both as a TRANSMITTER and a RECEIVER without the need for local process-level separation at each end of the transport channel. Do note that this facility does not subsume the single logical mastership requirement for every replication stream of interest.
