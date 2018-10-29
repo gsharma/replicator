@@ -3,13 +3,13 @@
 ## Background
 The Replicator is an automaton to provide asynchronous streaming replication between potentially geographically distributed datastore instances. It is a lower-than-application-level data sync-service that can run in one of transmit, receive or transceive modes as a side-car standalone process on either side of a LAN or WAN-based transport. Both the transmitter/streamer and receiver are implemented to use non-blocking I/O over HTTP. The replication protocol as designed, is independent of the choice of the underlying data-store it is implemented on. For the initial phase, the replicator spans [Corfu](https://github.com/CorfuDB/CorfuDB) db clusters spread across multiple remote sites.
 
-## Key Design Concerns
+## Key Design Tenets
 
 ### Do No Evil Modes
 The Replicator provides no support for Byzantine fault tolerance. At the moment, the Replicator assumes Fail-Stop mode of operation. Besides practical concerns with trust management and extension through the layers, this keeps with the design tenet of simplicity and debug-ability.
 
 ### Fire-and-Forget Transmitters
-Replicator running in Transmitter mode does not wait for synchronous acknowledgement in response to events sent over the wire. It delegates concerns such as flow and congestion control to TCP and works via a NACK protocol (described later). 
+Replicator running in Transmitter mode does not wait for any synchronous or asynchronous acknowledgement in response to events sent over the wire. It delegates concerns such as flow and congestion control to TCP and works via a NACK protocol (described later). 
 
 ### Transports
 Transports are easily pluggable for the most part but practical concerns dictate a deliberate preference towards using HTTP over WAN.
@@ -50,6 +50,9 @@ Recovery Phase is a logical-phase and not a real phase as modeled by the Replica
 ### Recovery Phase (RECEIVER)
 Recovery Phase on the RECEIVER is also a logical phase and proceeds in similar ways as described in the section on TRANSMITTER recovery. On recovery from failure, the Connection phase which terminates with channel establishment, can be initiated and reached from either the TRANSMITTER or RECEIVER replicators depending on the location of failure. Once the RECEIVER reaches the Sync phase, it is business as usual. 
 
+### Transceiver Mode
+For channel #3 in the architecture diagram above, the replicator will function in the TRANSCEIVER mode and will be able to serve as both as a TRANSMITTER and a RECEIVER without the need for local process-level separation at each end of the transport channel. Do note that this facility does not subsume the single logical mastership requirement for every replication stream of interest.
+
 ## Failure Modes
 Since the system is distributed and has many different components, failure handling, detection and recovery need to be individually addressed. Depending on the type of failure, the system maybe able to self-heal without human intervention or might require either a human supervisor or a process supervisor to heal itself.
 
@@ -61,8 +64,15 @@ Since the system is distributed and has many different components, failure handl
 
 ### TRANSMITTER/RECEIVER Source Failure
 
+### Site Failure
+
+
 ## Event Ordering
 A total ordering of events is to be expected and provided. Due to the RECEIVER maintaining its local windows of last processed events, any duplicate events streamed to it are dropped by it - at-least-once delivery is acceptable to the RECEIVER. Secondly, the TRANSMITTER and RECEIVER read, stream and replay events in strict order - this does not imply strictly contiguous offsets for the RECEIVER. It does guarantee monotonically increasing offsets received and processed by the RECEIVER. Thirdly, the channel (TCP) is leveraged for event ordering - packets can be reordered in transit but the TCP stack on the RECEIVER deals with buffering and reordering them before presenting them to the replicator. Note that threading the source stream processing needs to guarantee that log event ordering is not mangled on the RECEIVER replicator.
+
+## Assumptions
+1. Every replication stream has a single logical mastership. It can have N interested slave receivers.
+2. Some level of backwards compatibility needs to spec'ed out both for the data formats handled by the replicator and for the contract between the replicator interfaces themselves.
 
 ## Usage Example
 ### Quick Start
