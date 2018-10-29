@@ -14,7 +14,7 @@ Replicator running in Transmitter mode does not wait for any synchronous or asyn
 ### Transports
 Transports are easily pluggable for the most part but practical concerns dictate a deliberate preference towards using HTTP over WAN.
 
-### Replicator FSM
+### 	Automaton
 The Replicator itself is trivially an Automaton and wiring for [FSM](https://github.com/gsharma/state-machine) is sprinkled throughout the core service pieces. My FSM implementation is Java9 based and hence temporarily fenced off until such time that the Replicator can be upgraded, as well. The FSM will help with the replication stages - eg. bootstrapping, remote channel establishment, handshaking/negotiation of streams to sync, lifecycle management, etc. Note that the FSM is typically best configured to reset itself to init state on failures - it can do that as a hard-reset or a step-wise state unrolling, the former being the preferred mode.
 
 ### Concurrency & Throughput
@@ -53,6 +53,9 @@ Recovery Phase on the RECEIVER is also a logical phase and proceeds in similar w
 ### Transceiver Mode
 For channel #3 in the architecture diagram above, the replicator will function in the TRANSCEIVER mode and will be able to serve as both as a TRANSMITTER and a RECEIVER without the need for local process-level separation at each end of the transport channel. Do note that this facility does not subsume the single logical mastership requirement for every replication stream of interest.
 
+## Replicator FSM
+<img src="replicator_fsm.png?raw=true" alt="Replicator FSM"/>
+
 ## Failure Modes
 Since the system is distributed and has many different components, failure handling, detection and recovery need to be individually addressed. Depending on the type of failure, the system maybe able to self-heal without human intervention or might require either a human supervisor or a process supervisor to heal itself.
 
@@ -66,6 +69,7 @@ Since the system is distributed and has many different components, failure handl
 
 ### Site Failure
 
+### Datastore Failure - source and/or sink
 
 ## Event Ordering
 A total ordering of events is to be expected and provided. Due to the RECEIVER maintaining its local windows of last processed events, any duplicate events streamed to it are dropped by it - at-least-once delivery is acceptable to the RECEIVER. Secondly, the TRANSMITTER and RECEIVER read, stream and replay events in strict order - this does not imply strictly contiguous offsets for the RECEIVER. It does guarantee monotonically increasing offsets received and processed by the RECEIVER. Thirdly, the channel (TCP) is leveraged for event ordering - packets can be reordered in transit but the TCP stack on the RECEIVER deals with buffering and reordering them before presenting them to the replicator. Note that threading the source stream processing needs to guarantee that log event ordering is not mangled on the RECEIVER replicator.
