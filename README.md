@@ -1,3 +1,5 @@
+[![Build Status](https://api.travis-ci.org/gsharma/replicator.png)](https://travis-ci.org/gsharma/replicator)
+
 # Replicator
 
 ## Background
