@@ -71,20 +71,22 @@ public class ReplicationServiceTest {
       event.setStatus(Status.UP);
       events.add(event);
     }
-    logger.info(String.format("Pumping %d test replication events", eventCount));
-    senderCorfuDelegate.saveEvents(events);
+    // logger.info(String.format("Pumping %d test replication events", eventCount));
+    // senderCorfuDelegate.saveEvents(events);
 
+    logger.info("Starting corfu table operations");
     final Map<String, String> testMap = getMap(senderCorfuDelegate, LogEvent.STREAM_NAME);
     senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
     testMap.put("ONE", "1");
     testMap.put("TWO", "2");
     testMap.put("ONE", "11");
+    testMap.put("THREE", "3");
     testMap.remove("ONE");
     testMap.clear();
     senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
 
     // 4. breather for Receiver to receive and save events (apply log)
-    Thread.sleep(30_000L);
+    Thread.sleep(5_000L);
   }
 
   private <K, V> Map<K, V> getMap(final CorfuDelegate delegate, final String streamName) {

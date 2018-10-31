@@ -3,6 +3,7 @@ package com.github.replicator;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,11 +23,11 @@ import org.corfudb.infrastructure.ServerContext;
  */
 public final class LocalCorfuServer {
   private static final Logger logger = LogManager.getLogger(LocalCorfuServer.class.getSimpleName());
-  private Thread runner;
+  private Thread serverWorker;
 
-  private ServerContext context;
-  private NettyServerRouter router;
-  private volatile boolean running;
+  private final AtomicBoolean running = new AtomicBoolean(false);
+  private ServerContext serverContext;
+  private NettyServerRouter nettyServerRouter;
 
   private final String host;
   private final int port;
@@ -38,7 +39,7 @@ public final class LocalCorfuServer {
 
   public void init() throws Exception {
     final Map<String, Object> serverOptions = defaultServerOptions();
-    runner = new Thread() {
+    serverWorker = new Thread() {
       {
         setName("Local Corfu Server");
       }
@@ -48,10 +49,10 @@ public final class LocalCorfuServer {
         serverLoop(serverOptions);
       }
     };
-    runner.start();
+    serverWorker.start();
     // spin like silly waiting for server to bootstrap
     long waitMillis = 200L;
-    while (!running) {
+    while (!running.get()) {
       logger.info(String.format("Waiting %d millis for corfu server to bootstrap on %s:%d",
           waitMillis, host, port));
       Thread.sleep(waitMillis);
@@ -62,39 +63,39 @@ public final class LocalCorfuServer {
 
   public void tini() {
     logger.info(String.format("Shutting down corfu server on %s:%d", host, port));
-    running = false;
-    runner.interrupt();
-    CorfuServer.cleanShutdown(router);
-    context.close();
+    running.set(false);
+    serverWorker.interrupt();
+    CorfuServer.cleanShutdown(nettyServerRouter);
+    serverContext.close();
     logger.info(String.format("Successfully shutdown corfu server on %s:%d", host, port));
   }
 
   public boolean isRunning() {
-    return running;
+    return running.get();
   }
 
   private void serverLoop(final Map<String, Object> options) {
-    String address = (String) options.get("--address");
-    int port = Integer.parseInt((String) options.get("<port>"));
-    context = new ServerContext(options);
-    BaseServer baseServer = new BaseServer(context);
-    SequencerServer sequencerServer = new SequencerServer(context);
-    LayoutServer layoutServer = new LayoutServer(context);
-    LogUnitServer logUnitServer = new LogUnitServer(context);
-    ManagementServer managementServer = new ManagementServer(context);
-    router = new NettyServerRouter(
+    final String address = (String) options.get("--address");
+    final int port = Integer.parseInt((String) options.get("<port>"));
+    serverContext = new ServerContext(options);
+    final BaseServer baseServer = new BaseServer(serverContext);
+    final SequencerServer sequencerServer = new SequencerServer(serverContext);
+    final LayoutServer layoutServer = new LayoutServer(serverContext);
+    final LogUnitServer logUnitServer = new LogUnitServer(serverContext);
+    final ManagementServer managementServer = new ManagementServer(serverContext);
+    nettyServerRouter = new NettyServerRouter(
         Arrays.asList(baseServer, sequencerServer, layoutServer, logUnitServer, managementServer));
-    context.setServerRouter(router);
+    serverContext.setServerRouter(nettyServerRouter);
     try {
-      running = true;
-      CorfuServer.startAndListen(context.getBossGroup(), context.getWorkerGroup(),
-          (bs) -> CorfuServer.configureBootstrapOptions(context, bs), context, router, address,
-          port).channel().closeFuture().sync().get();
+      running.set(true);
+      CorfuServer.startAndListen(serverContext.getBossGroup(), serverContext.getWorkerGroup(),
+          (bootstrap) -> CorfuServer.configureBootstrapOptions(serverContext, bootstrap),
+          serverContext, nettyServerRouter, address, port).channel().closeFuture().sync().get();
     } catch (InterruptedException interrupted) {
     } catch (Exception problem) {
       throw new RuntimeException("Error while running server", problem);
     } finally {
-      if (running) {
+      if (running.get()) {
         logger.info("Shutting down local corfu server loop");
         tini();
       }

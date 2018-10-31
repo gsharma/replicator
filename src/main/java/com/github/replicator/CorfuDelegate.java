@@ -92,7 +92,7 @@ public final class CorfuDelegate {
    * Setup support for streaming from transaction_stream.
    */
   private void initTransactionStream() {
-    logger.info("Setting up to stream from transaction stream");
+    logger.info("Initializing transaction stream");
     final StreamOptions options = new StreamOptions(true);
     final IStreamView transactionStream =
         runtime.getStreamsView().get(ObjectsView.TRANSACTION_STREAM_ID, options);
@@ -123,13 +123,17 @@ public final class CorfuDelegate {
    * Fetch a batch of events from the last offset position for every stream.
    */
   public List<LogEvent> fetchEvents() {
+    // final String streamName = "Transaction_Stream";
+    final String streamName = LogEvent.STREAM_NAME;
     final List<LogEvent> events = new ArrayList<>();
-    final UUID streamId = CorfuRuntime.getStreamID(LogEvent.STREAM_NAME);
+    final UUID streamId = CorfuRuntime.getStreamID(streamName);
+    logger.info(String.format("Streams::[%s:%s][%s:%s]", "Transaction_Stream",
+        ObjectsView.TRANSACTION_STREAM_ID.toString(), streamName, streamId.toString()));
     allStreamViews.putIfAbsent(streamId, runtime.getStreamsView().get(streamId));
     final IStreamView streamView = allStreamViews.get(streamId);
     final long tailOffset = tailOffset(streamId);
     if (tailOffset == emptyStreamOffset) {
-      logger.info("No events in stream: " + LogEvent.STREAM_NAME);
+      logger.info("No events in stream: " + streamName);
       return events;
     }
 
@@ -137,8 +141,8 @@ public final class CorfuDelegate {
     // TODO: startOffset should be configurable to allow the replicator to shutdown and resume from
     // either the last streamed offset or a chosen offset of interest
     long startOffset = 0;
-    globalStreamOffsets.putIfAbsent(LogEvent.STREAM_NAME, 0L);
-    startOffset = globalStreamOffsets.get(LogEvent.STREAM_NAME);
+    globalStreamOffsets.putIfAbsent(streamName, 0L);
+    startOffset = globalStreamOffsets.get(streamName);
 
     long highWatermark = 0;
     if (tailOffset - startOffset > config.getReplicationStreamDepth()) {
@@ -148,7 +152,7 @@ public final class CorfuDelegate {
     }
 
     logger.info(String.format("Fetching events from stream:%s, offsets::start:%d, end:%d",
-        LogEvent.STREAM_NAME, startOffset, highWatermark));
+        streamName, startOffset, highWatermark));
     final List<ILogData> eventsInLog = streamView.remainingUpTo(highWatermark);
 
     if (eventsInLog != null) {
@@ -227,7 +231,9 @@ public final class CorfuDelegate {
         }
       }
     }
-    globalStreamOffsets.put(LogEvent.STREAM_NAME, highWatermark);
+    logger.info(String.format("Refreshing cached offsets:: stream:%s, offset:%d", streamName,
+        highWatermark));
+    globalStreamOffsets.put(streamName, highWatermark);
     return events;
   }
 
