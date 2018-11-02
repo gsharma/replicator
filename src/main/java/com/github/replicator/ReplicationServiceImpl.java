@@ -189,6 +189,21 @@ final class ReplicationServiceImpl implements ReplicationService {
     return modalSuccess;
   }
 
+  private boolean tiniModalActions() {
+    boolean modalSuccess = true;
+    switch (config.getMode()) {
+      case TRANSMITTER:
+      case TRANSCEIVER:
+        if (sendModeServiceHandler != null && sendModeServiceHandler.isRunning()) {
+          modalSuccess = sendModeServiceHandler.tini();
+        }
+        break;
+      default:
+        break;
+    }
+    return modalSuccess;
+  }
+
   @Override
   public synchronized void stop() throws Exception {
     // String fsmFlowId = fsm.startFlow();
@@ -216,10 +231,7 @@ final class ReplicationServiceImpl implements ReplicationService {
       httpChannel.closeFuture().await();
     }
 
-    if (config.getMode() == ReplicationMode.TRANSMITTER && sendModeServiceHandler != null
-        && sendModeServiceHandler.isRunning()) {
-      sendModeServiceHandler.tini();
-    }
+    tiniModalActions();
 
     corfuDelegate.tini();
 

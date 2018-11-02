@@ -118,12 +118,13 @@ final class SendModeServiceHandler {
     return running.get();
   }
 
-  void tini() throws Exception {
+  boolean tini() {
     logger.info("Shutting down send mode service handler");
     running.set(false);
     client.dispatcher().executorService().shutdown();
     client.connectionPool().evictAll();
     logger.info("Successfully shut down send mode service handler");
+    return true;
   }
 
   static final class LoggingInterceptor implements Interceptor {

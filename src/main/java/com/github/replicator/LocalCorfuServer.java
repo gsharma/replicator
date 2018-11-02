@@ -66,8 +66,8 @@ public final class LocalCorfuServer {
           waitMillis, host, port));
       Thread.sleep(waitMillis);
     }
-    logger.info(
-        String.format("Successfully fired up corfu server with options::\n%s", serverOptions));
+    logger
+        .info(String.format("Successfully fired up corfu server with options::%s", serverOptions));
   }
 
   public void tini() {

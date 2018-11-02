@@ -70,10 +70,10 @@ public final class CorfuDelegate {
    * Initialize the delegate
    */
   public boolean init(final ReplicationServiceConfiguration config) {
-    logger.info(String.format("Boostrapping corfu delegate to connect to %s:%d", host, port));
     this.config = config;
     this.host = config.getCorfuHost();
     this.port = config.getCorfuPort();
+    logger.info(String.format("Boostrapping corfu delegate to connect to %s:%d", host, port));
     runtime.parseConfigurationString(host + ":" + port);
     runtime = runtime.connect();
     logger.info(runtime.getStreamsView().getCurrentLayout().toString());
