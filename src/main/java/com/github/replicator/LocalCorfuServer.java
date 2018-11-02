@@ -46,6 +46,15 @@ public final class LocalCorfuServer {
 
       @Override
       public void run() {
+        /**
+         * -Dcorfu.metrics.collection=True<br/>
+         * -Dcorfu.metrics.csv.interval=30<br/>
+         * -Dcorfu.metrics.csv.folder=/tmp/csv5<br/>
+         * -Dcorfu.metrics.jmxreporting=True<br/>
+         * -Dcorfu.metrics.log.analysis=True<br/>
+         * -Dcorfu.metrics.jvm=True<br/>
+         * -Dcorfu.metrics.log.interval=60<br/>
+         */
         serverLoop(serverOptions);
       }
     };

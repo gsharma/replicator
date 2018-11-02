@@ -23,6 +23,9 @@ import org.corfudb.runtime.view.ObjectsView;
 import org.corfudb.runtime.view.StreamOptions;
 import org.corfudb.runtime.view.stream.IStreamView;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Metric;
+
 /**
  * All datastore centric ops are here.
  * 
@@ -314,6 +317,7 @@ public final class CorfuDelegate {
     logger.info(String.format("Shutting down corfu delegate connected to %s:%d", host, port));
     logger.info(runtime.getStreamsView().getCurrentLayout().toString());
     logger.info(runtime.getLayoutView().getRuntimeLayout().toString());
+    logCorfuCounters();
     runtime.shutdown();
     if (runtime.isShutdown()) {
       shutdownStatus = true;
@@ -324,6 +328,24 @@ public final class CorfuDelegate {
           .info(String.format("Failed to shutdown corfu delegate connected to %s:%d", host, port));
     }
     return shutdownStatus;
+  }
+
+  private void logCorfuCounters() {
+    final Map<String, Metric> corfuMetrics = runtime.getMetrics().getMetrics();
+    if (corfuMetrics != null && !corfuMetrics.isEmpty()) {
+      final StringBuilder builder = new StringBuilder();
+      for (final Map.Entry<String, Metric> corfuMetric : corfuMetrics.entrySet()) {
+        if (corfuMetric != null) {
+          // at this time, let's only worry about handling Counter metrics
+          if (corfuMetric.getValue() != null
+              && corfuMetric.getValue().getClass().isAssignableFrom(Counter.class)) {
+            builder.append('[').append(corfuMetric.getKey()).append(':')
+                .append(((Counter) corfuMetric.getValue()).getCount()).append(']');
+          }
+        }
+      }
+      logger.info(String.format("Corfu metrics::%s", builder.toString()));
+    }
   }
 
   // Supported LogEntry types

@@ -85,12 +85,16 @@ final class ReplicationServiceImpl implements ReplicationService {
   }
 
   @Override
-  public void start() throws Exception {
+  public synchronized void start() throws Exception {
     // String fsmFlowId = fsm.startFlow();
     // fsm.transitionTo(fsmFlowId, ServiceState.starting);
 
     corfuDelegate = new CorfuDelegate();
-    corfuDelegate.init(config);
+    final boolean corfuLiveness = corfuDelegate.init(config);
+
+    if (!corfuLiveness) {
+      throw new RuntimeException("Failed to establish a communication channel with corfu db");
+    }
 
     // TODO: handle args
     int serverThreadCount = config.getServerThreadCount();
@@ -152,10 +156,16 @@ final class ReplicationServiceImpl implements ReplicationService {
     bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 15000);
 
     httpChannel = bootstrap.bind(config.getServerHost(), config.getServerPort()).sync().channel();
+    final boolean channelLiveness = httpChannel.isActive() && httpChannel.isOpen();
+    if (!channelLiveness) {
+      throw new RuntimeException("Failed to setup a server socket for replication service");
+    }
 
-    if (config.getMode() == ReplicationMode.TRANSMITTER) {
-      sendModeServiceHandler = new SendModeServiceHandler(config, corfuDelegate);
-      sendModeServiceHandler.init();
+    boolean modalSuccess = initModalActions();
+    if (!modalSuccess) {
+      throw new RuntimeException(
+          String.format("Failed to initialize modal actions for replication service in %s mode",
+              config.getMode()));
     }
 
     // fsm.transitionTo(fsmFlowId, ServiceState.running);
@@ -165,8 +175,22 @@ final class ReplicationServiceImpl implements ReplicationService {
             config.getMode(), config.getServerHost(), config.getServerPort(), config));
   }
 
+  private boolean initModalActions() {
+    boolean modalSuccess = true;
+    switch (config.getMode()) {
+      case TRANSMITTER:
+      case TRANSCEIVER:
+        sendModeServiceHandler = new SendModeServiceHandler(config, corfuDelegate);
+        modalSuccess = sendModeServiceHandler.init();
+        break;
+      default:
+        break;
+    }
+    return modalSuccess;
+  }
+
   @Override
-  public void stop() throws Exception {
+  public synchronized void stop() throws Exception {
     // String fsmFlowId = fsm.startFlow();
     // logger.info(fsm.readCurrentState(fsmFlowId));
     // fsm.transitionTo(fsmFlowId, ServiceState.stopping);
