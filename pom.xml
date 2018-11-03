@@ -140,6 +140,14 @@
   </reporting>-->
 
   <build>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.6.1</version>
+      </extension>
+    </extensions>
+
     <plugins>
       <!-- enforcer -->
       <!-- temp stopped enforcer:enforce to fail compilation due to corfu slf4j version variations that need to be fixed -->
