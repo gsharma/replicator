@@ -201,6 +201,7 @@ public final class CorfuDelegate {
            * 5. CHECKPOINT(10, CheckpointEntry.class)<br/>
            * 6. Other custom types like byte[]<br/>
            */
+          final Long eventLogOffset = eventInLog.getGlobalAddress();
           final Object eventPayload = eventInLog.getPayload(runtime);
           if (eventPayload != null) {
             // logger.info(String.format("Processing %s type log event",
@@ -213,8 +214,8 @@ public final class CorfuDelegate {
             } else if (SupportedLogEntryType.MULTIOBJECT_SMR_ENTRY
                 .getClazz() == eventPayloadClass) {
               final MultiObjectSMREntry multiObjectSMREntry = (MultiObjectSMREntry) eventPayload;
-              // logger.info(String.format("Encountered MultiObjectSMREntry log event, offset:%d",
-              // eventInLog.getGlobalAddress()));
+              logger.info(String.format("Encountered MultiObjectSMREntry log event, offset:%d",
+                  eventInLog.getGlobalAddress()));
               event = process(multiObjectSMREntry);
             } else {
               logger.warn(String.format("Skipping unsupported %s type log event, offset:%d",
@@ -259,13 +260,13 @@ public final class CorfuDelegate {
         // for SMR_METHOD_CLEAR, both key and value will be null
         final Object key =
             operation.getSMRArguments().length > 0 ? operation.getSMRArguments()[0] : null;
-        final Class<?> keyClass = key != null ? key.getClass() : null;
+        final String keyClass = key != null ? key.getClass().getSimpleName() : null;
         // for SMR_METHOD_REMOVE, value will be null
         final Object value =
             operation.getSMRArguments().length > 1 ? operation.getSMRArguments()[1] : null;
-        final Class<?> valueClass = value != null ? value.getClass() : null;
-        logger.info(String.format("SMREntry::[method:[%s], key:[[%s][%s]], value:[[%s][%s]]]",
-            opMethod, keyClass, key, valueClass, value));
+        final String valueClass = value != null ? value.getClass().getSimpleName() : null;
+        logger.info(String.format("[SMREntry::[method:%s] [key:[%s][%s]] [value:[%s][%s]]]",
+            opMethod, key, keyClass, value, valueClass));
         switch (opMethod) {
           // TODO: finish me
           case SMR_METHOD_PUT:
@@ -279,8 +280,8 @@ public final class CorfuDelegate {
             break;
           default:
             logger.error(
-                String.format("Unhandled SMREntry::[method:[%s], key:[[%s][%s]], value:[[%s][%s]]]",
-                    opMethod, keyClass, key, valueClass, value));
+                String.format("Unhandled [SMREntry::[method:%s] [key:[%s][%s]] [value:[%s][%s]]]",
+                    opMethod, key, keyClass, value, valueClass));
             break;
         }
       }

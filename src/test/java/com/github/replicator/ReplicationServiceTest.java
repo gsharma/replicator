@@ -85,6 +85,14 @@ public class ReplicationServiceTest {
     testMap.clear();
     senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
 
+    senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
+    testMap.put("FOUR", "4");
+    testMap.put("FIVE", "5");
+    testMap.put("SIX", "6");
+    testMap.remove("FIVE");
+    testMap.clear();
+    senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
+
     // 4. breather for Receiver to receive and save events (apply log)
     Thread.sleep(5_000L);
   }
