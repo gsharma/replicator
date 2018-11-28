@@ -210,16 +210,14 @@ public final class CorfuDelegate {
             final Class eventPayloadClass = eventPayload.getClass();
             if (SupportedLogEntryType.BYTE_ARRAY.getClazz() == eventPayloadClass) {
               final byte[] byteArrayEntry = (byte[]) eventPayload;
-              event = process(byteArrayEntry);
+              event = process(eventLogOffset, byteArrayEntry);
             } else if (SupportedLogEntryType.MULTIOBJECT_SMR_ENTRY
                 .getClazz() == eventPayloadClass) {
               final MultiObjectSMREntry multiObjectSMREntry = (MultiObjectSMREntry) eventPayload;
-              logger.info(String.format("Encountered MultiObjectSMREntry log event, offset:%d",
-                  eventInLog.getGlobalAddress()));
-              event = process(multiObjectSMREntry);
+              event = process(eventLogOffset, multiObjectSMREntry);
             } else {
               logger.warn(String.format("Skipping unsupported %s type log event, offset:%d",
-                  eventPayloadClass, eventInLog.getGlobalAddress()));
+                  eventPayloadClass, eventLogOffset));
             }
             if (event != null) {
               events.add(event);
@@ -242,7 +240,7 @@ public final class CorfuDelegate {
   }
 
   // handler for byte[] events
-  private static LogEvent process(final byte[] eventPayload) throws Exception {
+  private static LogEvent process(final Long offset, final byte[] eventPayload) throws Exception {
     final LogEvent event = LogEvent.jsonDeserialize(eventPayload);
     return event;
   }
@@ -251,10 +249,12 @@ public final class CorfuDelegate {
    * Handler for MultiObjectSMREntry events - handle all Mutators and MutatorAccessors in the 2 core
    * collections: ISMRMap (its children) and CorfuTable.
    */
-  private static LogEvent process(final MultiObjectSMREntry eventPayload) throws Exception {
-    LogEvent event = null;
+  private static LogEvent process(final Long offset, final MultiObjectSMREntry eventPayload)
+      throws Exception {
+    LogEvent event = new LogEvent();
     for (final Map.Entry<UUID, MultiSMREntry> entry : eventPayload.getEntryMap().entrySet()) {
       final UUID entryStreamId = entry.getKey();
+      final StringBuilder builder = new StringBuilder();
       for (final SMREntry operation : entry.getValue().getUpdates()) {
         final String opMethod = operation.getSMRMethod();
         // for SMR_METHOD_CLEAR, both key and value will be null
@@ -265,8 +265,9 @@ public final class CorfuDelegate {
         final Object value =
             operation.getSMRArguments().length > 1 ? operation.getSMRArguments()[1] : null;
         final String valueClass = value != null ? value.getClass().getSimpleName() : null;
-        logger.info(String.format("[SMREntry::[method:%s] [key:[%s][%s]] [value:[%s][%s]]]",
-            opMethod, key, keyClass, value, valueClass));
+        builder.append("\n\t")
+            .append(String.format("[SMREntry::[method:%s] [key:[%s][%s]] [value:[%s][%s]]]",
+                opMethod, key, keyClass, value, valueClass));
         switch (opMethod) {
           // TODO: finish me
           case SMR_METHOD_PUT:
@@ -285,6 +286,8 @@ public final class CorfuDelegate {
             break;
         }
       }
+      logger.info(String.format("Processed MultiObjectSMREntry log event, offset:%d %s", offset,
+          builder.toString()));
     }
     return event;
   }
