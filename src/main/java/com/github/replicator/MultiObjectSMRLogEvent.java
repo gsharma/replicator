@@ -26,17 +26,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * @author gaurav
  */
 @CorfuObject
-public class LogEvent implements Serializable {
+public class MultiObjectSMRLogEvent implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final ObjectMapper objectMapper = new ObjectMapper();
-  public static final String STREAM_NAME = "ReplicationStream";
+  private String streamName;
   private Long offset;
-  private Type type;
+  private LogEventType type;
   private List<LogEventEntry> entries = new ArrayList<>();
   // TODO: checksum
 
-  public enum Type {
-    MULTIOBJECTSMR;
+  @Accessor
+  public String getStreamName() {
+    return streamName;
+  }
+
+  @Mutator(name = "setStreamName")
+  public void setStreamName(final String streamName) {
+    this.streamName = streamName;
   }
 
   @Accessor
@@ -50,12 +56,12 @@ public class LogEvent implements Serializable {
   }
 
   @Accessor
-  public Type getType() {
+  public LogEventType getType() {
     return type;
   }
 
   @Mutator(name = "setType")
-  public void setType(final Type type) {
+  public void setType(final LogEventType type) {
     this.type = type;
   }
 
@@ -71,25 +77,25 @@ public class LogEvent implements Serializable {
 
   // TODO: make choice of SerDe configurable
   // JSON SerDe
-  public static byte[] jsonSerialize(final LogEvent event) throws Exception {
+  public static byte[] jsonSerialize(final MultiObjectSMRLogEvent event) throws Exception {
     return objectMapper.writeValueAsBytes(event);
   }
 
-  public static LogEvent jsonDeserialize(final byte[] event) throws Exception {
-    return objectMapper.readValue(event, LogEvent.class);
+  public static MultiObjectSMRLogEvent jsonDeserialize(final byte[] event) throws Exception {
+    return objectMapper.readValue(event, MultiObjectSMRLogEvent.class);
   }
 
   // Java SerDe
-  public static byte[] serialize(final LogEvent event) throws IOException {
+  public static byte[] serialize(final MultiObjectSMRLogEvent event) throws IOException {
     ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
     new ObjectOutputStream(byteStream).writeObject(event);
     return byteStream.toByteArray();
   }
 
-  public static LogEvent deserialize(final byte[] event)
+  public static MultiObjectSMRLogEvent deserialize(final byte[] event)
       throws IOException, ClassNotFoundException {
     ByteArrayInputStream byteStream = new ByteArrayInputStream(event);
-    return (LogEvent) new ObjectInputStream(byteStream).readObject();
+    return (MultiObjectSMRLogEvent) new ObjectInputStream(byteStream).readObject();
   }
 
   @Override
@@ -98,6 +104,7 @@ public class LogEvent implements Serializable {
     int result = 1;
     result = prime * result + ((entries == null) ? 0 : entries.hashCode());
     result = prime * result + ((offset == null) ? 0 : offset.hashCode());
+    result = prime * result + ((streamName == null) ? 0 : streamName.hashCode());
     result = prime * result + ((type == null) ? 0 : type.hashCode());
     return result;
   }
@@ -110,10 +117,10 @@ public class LogEvent implements Serializable {
     if (obj == null) {
       return false;
     }
-    if (!(obj instanceof LogEvent)) {
+    if (!(obj instanceof MultiObjectSMRLogEvent)) {
       return false;
     }
-    LogEvent other = (LogEvent) obj;
+    MultiObjectSMRLogEvent other = (MultiObjectSMRLogEvent) obj;
     if (entries == null) {
       if (other.entries != null) {
         return false;
@@ -128,6 +135,13 @@ public class LogEvent implements Serializable {
     } else if (!offset.equals(other.offset)) {
       return false;
     }
+    if (streamName == null) {
+      if (other.streamName != null) {
+        return false;
+      }
+    } else if (!streamName.equals(other.streamName)) {
+      return false;
+    }
     if (type != other.type) {
       return false;
     }
@@ -137,8 +151,9 @@ public class LogEvent implements Serializable {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("LogEvent [offset=").append(offset).append(", type=").append(type)
-        .append(", entries=").append(entries).append("]");
+    builder.append("MultiObjectSMRLogEvent [streamName=").append(streamName).append(", offset=")
+        .append(offset).append(", type=").append(type).append(", entries=").append(entries)
+        .append("]");
     return builder.toString();
   }
 

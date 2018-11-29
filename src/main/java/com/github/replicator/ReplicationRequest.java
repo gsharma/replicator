@@ -9,7 +9,7 @@ import java.util.List;
  */
 public class ReplicationRequest {
   private double requestId;
-  private List<LogEvent> events;
+  private List<MultiObjectSMRLogEvent> events;
 
   public void setRequestId(double requestId) {
     this.requestId = requestId;
@@ -19,11 +19,11 @@ public class ReplicationRequest {
     return requestId;
   }
 
-  public void setEvents(List<LogEvent> events) {
+  public void setEvents(List<MultiObjectSMRLogEvent> events) {
     this.events = events;
   }
 
-  public List<LogEvent> getEvents() {
+  public List<MultiObjectSMRLogEvent> getEvents() {
     return events;
   }
 

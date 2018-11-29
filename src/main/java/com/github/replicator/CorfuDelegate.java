@@ -27,7 +27,6 @@ import org.corfudb.runtime.view.stream.IStreamView;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Metric;
-import com.github.replicator.LogEvent.Type;
 import com.github.replicator.LogEventEntry.MutableOperation;
 
 /**
@@ -111,28 +110,28 @@ public final class CorfuDelegate {
    * Save the provided event to a stream with the name corresponding to the component name of the
    * event.
    */
-  public void saveEvent(final LogEvent event) throws Exception {
+  public void saveEvent(final MultiObjectSMRLogEvent event) throws Exception {
     Objects.requireNonNull(event);
     // logger.info("Saving " + event);
-    final UUID streamId = CorfuRuntime.getStreamID(LogEvent.STREAM_NAME);
+    final UUID streamId = CorfuRuntime.getStreamID(config.getStreamName());
     allStreamViews.putIfAbsent(streamId, runtime.getStreamsView().get(streamId));
     final IStreamView streamView = allStreamViews.get(streamId);
     final long tailOffsetBefore = tailOffset(streamId);
-    final byte[] flattenedEvent = LogEvent.jsonSerialize(event);
+    final byte[] flattenedEvent = MultiObjectSMRLogEvent.jsonSerialize(event);
     // TODO: check for supported types
     streamView.append(flattenedEvent);
     final long tailOffsetAfter = tailOffset(streamId);
-    logger.info(String.format("stream:%s, offsets::pre:%d, post:%d, saved %s", LogEvent.STREAM_NAME,
-        tailOffsetBefore, tailOffsetAfter, event));
+    logger.info(String.format("stream:%s, offsets::pre:%d, post:%d, saved %s",
+        config.getStreamName(), tailOffsetBefore, tailOffsetAfter, event));
   }
 
   /**
    * Fetch a batch of events from the last offset position for every stream.
    */
-  public List<LogEvent> fetchEvents() {
+  public List<MultiObjectSMRLogEvent> fetchEvents() {
     // final String streamName = "Transaction_Stream";
-    final String streamName = LogEvent.STREAM_NAME;
-    final List<LogEvent> events = new ArrayList<>();
+    final String streamName = config.getStreamName();
+    final List<MultiObjectSMRLogEvent> events = new ArrayList<>();
     final UUID streamId = CorfuRuntime.getStreamID(streamName);
     logger.info(String.format("Streams::[%s:%s][%s:%s]", "Transaction_Stream",
         ObjectsView.TRANSACTION_STREAM_ID.toString(), streamName, streamId.toString()));
@@ -212,7 +211,7 @@ public final class CorfuDelegate {
           final LogEntryType entryType = entry.getType();
           if (eventPayload != null) {
             logger.info(String.format("Processing %s type log event", entryType));
-            LogEvent event = null;
+            MultiObjectSMRLogEvent event = null;
             final Class eventPayloadClass = eventPayload.getClass();
             if (SupportedLogEntryType.BYTE_ARRAY.getClazz() == eventPayloadClass) {
               final byte[] byteArrayEntry = (byte[]) eventPayload;
@@ -220,7 +219,7 @@ public final class CorfuDelegate {
             } else if (SupportedLogEntryType.MULTIOBJECT_SMR_ENTRY
                 .getClazz() == eventPayloadClass) {
               final MultiObjectSMREntry multiObjectSMREntry = (MultiObjectSMREntry) eventPayload;
-              event = process(eventLogOffset, multiObjectSMREntry);
+              event = process(config, eventLogOffset, multiObjectSMREntry);
             } else {
               logger.warn(String.format("Skipping unsupported %s type log event, offset:%d",
                   eventPayloadClass, eventLogOffset));
@@ -246,8 +245,9 @@ public final class CorfuDelegate {
   }
 
   // handler for byte[] events
-  private static LogEvent process(final Long offset, final byte[] eventPayload) throws Exception {
-    final LogEvent event = LogEvent.jsonDeserialize(eventPayload);
+  private static MultiObjectSMRLogEvent process(final Long offset, final byte[] eventPayload)
+      throws Exception {
+    final MultiObjectSMRLogEvent event = MultiObjectSMRLogEvent.jsonDeserialize(eventPayload);
     return event;
   }
 
@@ -255,11 +255,12 @@ public final class CorfuDelegate {
    * Handler for MultiObjectSMREntry events - handle all Mutators and MutatorAccessors in the 2 core
    * collections: ISMRMap (its children) and CorfuTable.
    */
-  private static LogEvent process(final Long offset, final MultiObjectSMREntry eventPayload)
-      throws Exception {
-    LogEvent event = new LogEvent();
+  private static MultiObjectSMRLogEvent process(final ReplicationServiceConfiguration config,
+      final Long offset, final MultiObjectSMREntry eventPayload) throws Exception {
+    final MultiObjectSMRLogEvent event = new MultiObjectSMRLogEvent();
+    event.setStreamName(config.getStreamName());
     event.setOffset(offset);
-    event.setType(Type.MULTIOBJECTSMR);
+    event.setType(LogEventType.MULTIOBJECTSMR);
     for (final Map.Entry<UUID, MultiSMREntry> payloadEntry : eventPayload.getEntryMap()
         .entrySet()) {
       final UUID entryStreamId = payloadEntry.getKey();
@@ -317,9 +318,9 @@ public final class CorfuDelegate {
   /**
    * Save a batch of events.
    */
-  public void saveEvents(final List<LogEvent> events) throws Exception {
+  public void saveEvents(final List<MultiObjectSMRLogEvent> events) throws Exception {
     Objects.requireNonNull(events);
-    for (LogEvent event : events) {
+    for (MultiObjectSMRLogEvent event : events) {
       saveEvent(event);
     }
     logger.info(String.format("Successfully saved %d events", events.size()));

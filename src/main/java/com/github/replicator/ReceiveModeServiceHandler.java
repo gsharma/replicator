@@ -67,7 +67,7 @@ final class ReceiveModeServiceHandler extends SimpleChannelInboundHandler<FullHt
             objectMapper.readValue(body, ReplicationRequest.class);
         if (replicationRequest != null) {
           // logger.info("Received " + replicationRequest);
-          List<LogEvent> events = replicationRequest.getEvents();
+          List<MultiObjectSMRLogEvent> events = replicationRequest.getEvents();
           if (events != null && !events.isEmpty()) {
             corfuDelegate.saveEvents(events);
           }

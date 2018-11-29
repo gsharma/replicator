@@ -25,6 +25,7 @@ public final class ReplicationServiceConfiguration {
   private final int corfuPort;
 
   // streamer config
+  private final String streamName;
   private final long streamStartOffset;
   private final long replicationIntervalSeconds;
   private final int replicationStreamDepth;
@@ -37,7 +38,7 @@ public final class ReplicationServiceConfiguration {
       final int serverThreadCount, final int workerThreadCount, final int readerIdleTimeSeconds,
       final int writerIdleTimeSeconds, final int compressionLevel, final ReplicationMode mode,
       final String corfuHost, final int corfuPort, final long replicationIntervalSeconds,
-      final long streamStartOffset, final int replicationStreamDepth,
+      final String streamName, final long streamStartOffset, final int replicationStreamDepth,
       final String remoteServiceUrl) {
     this.serverHost = serverHost;
     this.serverPort = serverPort;
@@ -52,6 +53,7 @@ public final class ReplicationServiceConfiguration {
     this.corfuHost = corfuHost;
     this.corfuPort = corfuPort;
 
+    this.streamName = streamName;
     this.streamStartOffset = streamStartOffset;
     this.replicationIntervalSeconds = replicationIntervalSeconds;
     this.replicationStreamDepth = replicationStreamDepth;
@@ -99,6 +101,10 @@ public final class ReplicationServiceConfiguration {
     return mode;
   }
 
+  public String getStreamName() {
+    return streamName;
+  }
+
   public long getStreamStartOffset() {
     return streamStartOffset;
   }
@@ -124,11 +130,11 @@ public final class ReplicationServiceConfiguration {
         .append(", readerIdleTimeSeconds=").append(readerIdleTimeSeconds)
         .append(", writerIdleTimeSeconds=").append(writerIdleTimeSeconds)
         .append(", compressionLevel=").append(compressionLevel).append(", corfuHost=")
-        .append(corfuHost).append(", corfuPort=").append(corfuPort).append(", streamStartOffset=")
-        .append(streamStartOffset).append(", replicationIntervalSecs=")
-        .append(replicationIntervalSeconds).append(", replicationStreamDepth=")
-        .append(replicationStreamDepth).append(", remoteServiceUrl=").append(remoteServiceUrl)
-        .append("]");
+        .append(corfuHost).append(", corfuPort=").append(corfuPort).append(", streamName=")
+        .append(", streamStartOffset=").append(streamStartOffset)
+        .append(", replicationIntervalSecs=").append(replicationIntervalSeconds)
+        .append(", replicationStreamDepth=").append(replicationStreamDepth)
+        .append(", remoteServiceUrl=").append(remoteServiceUrl).append("]");
     return builder.toString();
   }
 

@@ -33,11 +33,13 @@ public class ReplicationServiceTest {
   private static final Logger logger =
       LogManager.getLogger(ReplicationServiceTest.class.getSimpleName());
 
+  private final static String streamName = "ReplicationStream";
+
   // Receiver
   private static ReplicationServiceConfiguration receiverConfig =
       new ReplicationServiceConfiguration("localhost", 9002, 2,
           Runtime.getRuntime().availableProcessors(), 120, 120, 9, ReplicationMode.RECEIVER,
-          "localhost", 9005, 5L, 0L, 9, null);
+          "localhost", 9005, 5L, streamName, 0L, 9, null);
   private static ReplicationService receiverService =
       ReplicationServiceBuilder.newBuilder().config(receiverConfig).build();
 
@@ -45,7 +47,7 @@ public class ReplicationServiceTest {
   private static ReplicationServiceConfiguration senderConfig =
       new ReplicationServiceConfiguration("localhost", 8002, 2,
           Runtime.getRuntime().availableProcessors(), 15, 15, 9, ReplicationMode.TRANSMITTER,
-          "localhost", 8005, 5L, 0L, 9, "http://localhost:9002/service/replicator/");
+          "localhost", 8005, 5L, streamName, 0L, 9, "http://localhost:9002/service/replicator/");
   private static ReplicationService senderService =
       ReplicationServiceBuilder.newBuilder().config(senderConfig).build();
 
@@ -64,16 +66,16 @@ public class ReplicationServiceTest {
     CorfuDelegate senderCorfuDelegate = new CorfuDelegate();
     senderCorfuDelegate.init(senderConfig);
     int eventCount = 30;
-    final List<LogEvent> events = new ArrayList<>(eventCount);
+    final List<MultiObjectSMRLogEvent> events = new ArrayList<>(eventCount);
     for (int iter = 0; iter < eventCount; iter++) {
-      LogEvent event = new LogEvent();
+      MultiObjectSMRLogEvent event = new MultiObjectSMRLogEvent();
       events.add(event);
     }
     // logger.info(String.format("Pumping %d test replication events", eventCount));
     // senderCorfuDelegate.saveEvents(events);
 
     logger.info("Starting corfu table operations");
-    final Map<String, String> testMap = getMap(senderCorfuDelegate, LogEvent.STREAM_NAME);
+    final Map<String, String> testMap = getMap(senderCorfuDelegate, streamName);
     // txn-1
     senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
     assertTrue(testMap.isEmpty());

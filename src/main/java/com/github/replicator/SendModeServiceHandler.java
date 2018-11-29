@@ -77,7 +77,7 @@ final class SendModeServiceHandler {
   void stream() {
     logger.info("Attempting another iteration of streaming");
     try {
-      final List<LogEvent> events = corfuDelegate.fetchEvents();
+      final List<MultiObjectSMRLogEvent> events = corfuDelegate.fetchEvents();
       if (events == null || events.isEmpty()) {
         logger.info(String.format(
             "Streamer found no events to stream; snoozing for %d seconds until next cycle",
