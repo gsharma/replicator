@@ -12,6 +12,8 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.corfudb.protocols.logprotocol.SMREntry;
+import org.corfudb.protocols.logprotocol.LogEntry;
+import org.corfudb.protocols.logprotocol.LogEntry.LogEntryType;
 import org.corfudb.protocols.logprotocol.MultiObjectSMREntry;
 import org.corfudb.protocols.logprotocol.MultiSMREntry;
 import org.corfudb.protocols.wireprotocol.DataType;
@@ -163,11 +165,11 @@ public final class CorfuDelegate {
         if (eventInLog == null) {
           continue;
         }
-        final DataType type = eventInLog.getType();
+        final DataType dataType = eventInLog.getType();
         // final LogEntry logEntry = eventInLog.getLogEntry(runtime);
         // logger.info(eventInLog.getLogEntry(runtime));
-        if (type != DataType.DATA) {
-          logger.info(String.format("Skipping %s log event, offset:%d", type,
+        if (dataType != DataType.DATA) {
+          logger.info(String.format("Skipping %s log event, offset:%d", dataType,
               eventInLog.getGlobalAddress()));
           continue;
         }
@@ -203,9 +205,11 @@ public final class CorfuDelegate {
            */
           final Long eventLogOffset = eventInLog.getGlobalAddress();
           final Object eventPayload = eventInLog.getPayload(runtime);
+          final LogEntry entry = eventInLog.getLogEntry(runtime);
+          // TODO: check for handle-able entry types
+          final LogEntryType entryType = entry.getType();
           if (eventPayload != null) {
-            // logger.info(String.format("Processing %s type log event",
-            // eventPayload.getClass().getSimpleName()));
+            logger.info(String.format("Processing %s type log event", entryType));
             LogEvent event = null;
             final Class eventPayloadClass = eventPayload.getClass();
             if (SupportedLogEntryType.BYTE_ARRAY.getClazz() == eventPayloadClass) {
@@ -223,7 +227,7 @@ public final class CorfuDelegate {
               events.add(event);
             }
           } else {
-            logger.info(String.format("Skipping null payload %s log event, offset:%d", type,
+            logger.info(String.format("Skipping null payload %s log event, offset:%d", entryType,
                 eventInLog.getGlobalAddress()));
           }
         } catch (Exception serdeIssue) {
@@ -260,13 +264,14 @@ public final class CorfuDelegate {
         // for SMR_METHOD_CLEAR, both key and value will be null
         final Object key =
             operation.getSMRArguments().length > 0 ? operation.getSMRArguments()[0] : null;
-        final String keyClass = key != null ? key.getClass().getSimpleName() : null;
+        final String keyClass = key != null ? key.getClass().getName() : null;
         // for SMR_METHOD_REMOVE, value will be null
         final Object value =
             operation.getSMRArguments().length > 1 ? operation.getSMRArguments()[1] : null;
-        final String valueClass = value != null ? value.getClass().getSimpleName() : null;
+        final String valueClass = value != null ? value.getClass().getName() : null;
         builder.append("\n\t")
-            .append(String.format("[SMREntry::[method:%s] [key:[%s][%s]] [value:[%s][%s]]]",
+            .append(String.format(
+                "[MultiObjectSMREntry::[Offset:%d] [Op:%s] [K:[%s][%s]] [V:[%s][%s]]]", offset,
                 opMethod, key, keyClass, value, valueClass));
         switch (opMethod) {
           // TODO: finish me
@@ -280,9 +285,9 @@ public final class CorfuDelegate {
           case SMR_METHOD_CLEAR:
             break;
           default:
-            logger.error(
-                String.format("Unhandled [SMREntry::[method:%s] [key:[%s][%s]] [value:[%s][%s]]]",
-                    opMethod, key, keyClass, value, valueClass));
+            logger.error(String.format(
+                "Unhandled [MultiObjectSMREntry::[Offset:%d] [Op:%s] [K:[%s][%s]] [V:[%s][%s]]]",
+                offset, opMethod, key, keyClass, value, valueClass));
             break;
         }
       }

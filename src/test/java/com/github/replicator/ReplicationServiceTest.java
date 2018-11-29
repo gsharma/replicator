@@ -1,5 +1,7 @@
 package com.github.replicator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -80,9 +82,12 @@ public class ReplicationServiceTest {
     testMap.put("ONE", "1");
     testMap.put("TWO", "2");
     testMap.put("ONE", "11");
+    assertEquals("11", testMap.get("ONE"));
     testMap.put("THREE", "3");
     testMap.remove("ONE");
+    assertNull(testMap.get("ONE"));
     testMap.clear();
+    assertTrue(testMap.isEmpty());
     senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
 
     senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
@@ -91,6 +96,7 @@ public class ReplicationServiceTest {
     testMap.put("SIX", "6");
     testMap.remove("FIVE");
     testMap.clear();
+    assertTrue(testMap.isEmpty());
     senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
 
     // 4. breather for Receiver to receive and save events (apply log)
