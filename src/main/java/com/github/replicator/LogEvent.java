@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.corfudb.annotations.Accessor;
 import org.corfudb.annotations.CorfuObject;
@@ -28,46 +30,43 @@ public class LogEvent implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final ObjectMapper objectMapper = new ObjectMapper();
   public static final String STREAM_NAME = "ReplicationStream";
-  private long clientTstamp;
-  private Component component;
-  private Status status;
+  private Long offset;
+  private Type type;
+  private List<LogEventEntry> entries = new ArrayList<>();
+  // TODO: checksum
 
-  public enum Component {
-    HTTP_SERVER, LOAD_BALANCER, REVERSE_PROXY, DATABASE;
-  }
-
-  public enum Status {
-    UP, DOWN;
+  public enum Type {
+    MULTIOBJECTSMR;
   }
 
   @Accessor
-  public long getClientTstamp() {
-    return clientTstamp;
+  public Long getOffset() {
+    return offset;
   }
 
-  @Mutator(name = "setClientTstamp")
-  public void setClientTstamp(long clientTstamp) {
-    this.clientTstamp = clientTstamp;
-  }
-
-  @Accessor
-  public Component getComponent() {
-    return component;
-  }
-
-  @Mutator(name = "setComponent")
-  public void setComponent(Component component) {
-    this.component = component;
+  @Mutator(name = "setOffset")
+  public void setOffset(final Long offset) {
+    this.offset = offset;
   }
 
   @Accessor
-  public Status getStatus() {
-    return status;
+  public Type getType() {
+    return type;
   }
 
-  @Mutator(name = "setStatus")
-  public void setStatus(Status status) {
-    this.status = status;
+  @Mutator(name = "setType")
+  public void setType(final Type type) {
+    this.type = type;
+  }
+
+  @Accessor
+  public List<LogEventEntry> getEntries() {
+    return entries;
+  }
+
+  @Mutator(name = "addEntry")
+  public void addEntry(final LogEventEntry entry) {
+    this.entries.add(entry);
   }
 
   // TODO: make choice of SerDe configurable
@@ -94,20 +93,12 @@ public class LogEvent implements Serializable {
   }
 
   @Override
-  public String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append("LogEvent [clientTstamp=").append(clientTstamp).append(", component=")
-        .append(component).append(", status=").append(status).append("]");
-    return builder.toString();
-  }
-
-  @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + (int) (clientTstamp ^ (clientTstamp >>> 32));
-    result = prime * result + ((component == null) ? 0 : component.hashCode());
-    result = prime * result + ((status == null) ? 0 : status.hashCode());
+    result = prime * result + ((entries == null) ? 0 : entries.hashCode());
+    result = prime * result + ((offset == null) ? 0 : offset.hashCode());
+    result = prime * result + ((type == null) ? 0 : type.hashCode());
     return result;
   }
 
@@ -123,16 +114,32 @@ public class LogEvent implements Serializable {
       return false;
     }
     LogEvent other = (LogEvent) obj;
-    if (clientTstamp != other.clientTstamp) {
+    if (entries == null) {
+      if (other.entries != null) {
+        return false;
+      }
+    } else if (!entries.equals(other.entries)) {
       return false;
     }
-    if (component != other.component) {
+    if (offset == null) {
+      if (other.offset != null) {
+        return false;
+      }
+    } else if (!offset.equals(other.offset)) {
       return false;
     }
-    if (status != other.status) {
+    if (type != other.type) {
       return false;
     }
     return true;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder();
+    builder.append("LogEvent [offset=").append(offset).append(", type=").append(type)
+        .append(", entries=").append(entries).append("]");
+    return builder.toString();
   }
 
 }

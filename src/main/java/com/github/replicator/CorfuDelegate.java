@@ -27,6 +27,8 @@ import org.corfudb.runtime.view.stream.IStreamView;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Metric;
+import com.github.replicator.LogEvent.Type;
+import com.github.replicator.LogEventEntry.MutableOperation;
 
 /**
  * All datastore centric ops are here.
@@ -256,19 +258,33 @@ public final class CorfuDelegate {
   private static LogEvent process(final Long offset, final MultiObjectSMREntry eventPayload)
       throws Exception {
     LogEvent event = new LogEvent();
-    for (final Map.Entry<UUID, MultiSMREntry> entry : eventPayload.getEntryMap().entrySet()) {
-      final UUID entryStreamId = entry.getKey();
+    event.setOffset(offset);
+    event.setType(Type.MULTIOBJECTSMR);
+    for (final Map.Entry<UUID, MultiSMREntry> payloadEntry : eventPayload.getEntryMap()
+        .entrySet()) {
+      final UUID entryStreamId = payloadEntry.getKey();
       final StringBuilder builder = new StringBuilder();
-      for (final SMREntry operation : entry.getValue().getUpdates()) {
+      for (final SMREntry operation : payloadEntry.getValue().getUpdates()) {
+        final LogEventEntry logEntry = new LogEventEntry();
         final String opMethod = operation.getSMRMethod();
+        logEntry.setOperation(MutableOperation.fromMethod(opMethod));
+
         // for SMR_METHOD_CLEAR, both key and value will be null
         final Object key =
             operation.getSMRArguments().length > 0 ? operation.getSMRArguments()[0] : null;
-        final String keyClass = key != null ? key.getClass().getName() : null;
+        logEntry.setKey(key);
+        final Class keyClass = key != null ? key.getClass() : null;
+        logEntry.setKeyClass(keyClass);
+
         // for SMR_METHOD_REMOVE, value will be null
         final Object value =
             operation.getSMRArguments().length > 1 ? operation.getSMRArguments()[1] : null;
-        final String valueClass = value != null ? value.getClass().getName() : null;
+        logEntry.setValue(value);
+        final Class valueClass = value != null ? value.getClass() : null;
+        logEntry.setValueClass(valueClass);
+
+        event.addEntry(logEntry);
+
         builder.append("\n\t")
             .append(String.format(
                 "[MultiObjectSMREntry::[Offset:%d] [Op:%s] [K:[%s][%s]] [V:[%s][%s]]]", offset,
@@ -293,6 +309,7 @@ public final class CorfuDelegate {
       }
       logger.info(String.format("Processed MultiObjectSMREntry log event, offset:%d %s", offset,
           builder.toString()));
+      // logger.info(String.format("Processed %s", event));
     }
     return event;
   }

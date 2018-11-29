@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,8 +18,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.github.replicator.LogEvent.Component;
-import com.github.replicator.LogEvent.Status;
 import com.github.replicator.ReplicationService.ReplicationServiceBuilder;
 
 import okhttp3.Interceptor;
@@ -68,9 +67,6 @@ public class ReplicationServiceTest {
     final List<LogEvent> events = new ArrayList<>(eventCount);
     for (int iter = 0; iter < eventCount; iter++) {
       LogEvent event = new LogEvent();
-      event.setClientTstamp(System.nanoTime());
-      event.setComponent(Component.HTTP_SERVER);
-      event.setStatus(Status.UP);
       events.add(event);
     }
     // logger.info(String.format("Pumping %d test replication events", eventCount));
@@ -78,10 +74,13 @@ public class ReplicationServiceTest {
 
     logger.info("Starting corfu table operations");
     final Map<String, String> testMap = getMap(senderCorfuDelegate, LogEvent.STREAM_NAME);
+    // txn-1
     senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
+    assertTrue(testMap.isEmpty());
     testMap.put("ONE", "1");
     testMap.put("TWO", "2");
     testMap.put("ONE", "11");
+    testMap.replace("TWO", "22");
     assertEquals("11", testMap.get("ONE"));
     testMap.put("THREE", "3");
     testMap.remove("ONE");
@@ -90,11 +89,25 @@ public class ReplicationServiceTest {
     assertTrue(testMap.isEmpty());
     senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
 
+    // txn-2
     senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
+    assertTrue(testMap.isEmpty());
     testMap.put("FOUR", "4");
     testMap.put("FIVE", "5");
     testMap.put("SIX", "6");
     testMap.remove("FIVE");
+    testMap.clear();
+    assertTrue(testMap.isEmpty());
+    senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
+
+    // txn-3
+    senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
+    assertTrue(testMap.isEmpty());
+    Map<String, String> putAllTest = new HashMap<>();
+    putAllTest.put("SEVEN", "7");
+    putAllTest.put("EIGHT", "8");
+    putAllTest.put("NONE", "9");
+    testMap.putAll(putAllTest);
     testMap.clear();
     assertTrue(testMap.isEmpty());
     senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
