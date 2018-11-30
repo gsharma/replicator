@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -60,6 +61,7 @@ public final class CorfuDelegate {
   private CorfuRuntime runtime =
       CorfuRuntime.fromParameters(parameters).setTransactionLogging(true);
 
+  private final AtomicBoolean running = new AtomicBoolean();
   private ReplicationServiceConfiguration config;
   private String host;
   private int port;
@@ -72,26 +74,32 @@ public final class CorfuDelegate {
   /**
    * Initialize the delegate
    */
-  public boolean init(final ReplicationServiceConfiguration config) {
-    this.config = config;
-    this.host = config.getCorfuHost();
-    this.port = config.getCorfuPort();
-    logger.info(String.format("Boostrapping corfu delegate to connect to %s:%d", host, port));
-    runtime.parseConfigurationString(host + ":" + port);
-    runtime = runtime.connect();
-    logger.info(runtime.getStreamsView().getCurrentLayout().toString());
-    logger.info(runtime.getLayoutView().getRuntimeLayout().toString());
-    boolean connectionStatus = false;
-    if (!runtime.isShutdown()) {
-      initTransactionStream();
-      connectionStatus = true;
-      logger.info(String.format("Successfully bootstrapped corfu delegate to connect to %s:%d",
-          host, port));
+  public CorfuDelegate init(final ReplicationServiceConfiguration config) {
+    if (!running.get()) {
+      this.config = config;
+      this.host = config.getCorfuHost();
+      this.port = config.getCorfuPort();
+      logger.info(String.format("Boostrapping corfu delegate to connect to %s:%d", host, port));
+      runtime.parseConfigurationString(host + ":" + port);
+      runtime = runtime.connect();
+      logger.info(runtime.getStreamsView().getCurrentLayout().toString());
+      logger.info(runtime.getLayoutView().getRuntimeLayout().toString());
+      boolean connectionStatus = false;
+      if (!runtime.isShutdown()) {
+        initTransactionStream();
+        connectionStatus = true;
+        logger.info(String.format("Successfully bootstrapped corfu delegate to connect to %s:%d",
+            host, port));
+      } else {
+        logger.info(
+            String.format("Failed to bootstrap corfu delegate to connect to %s:%d", host, port));
+      }
+      running.set(connectionStatus);
     } else {
-      logger.info(
-          String.format("Failed to bootstrap corfu delegate to connect to %s:%d", host, port));
+      logger.info(String.format(
+          "Cannot bootstrap an already running corfu delegate to connect to %s:%d", host, port));
     }
-    return connectionStatus;
+    return this;
   }
 
   /**
@@ -111,6 +119,10 @@ public final class CorfuDelegate {
    * event.
    */
   public void saveEvent(final MultiObjectSMRLogEvent event) throws Exception {
+    if (!running.get()) {
+      throw new IllegalStateException(
+          "Cannot perform datastore operations without a live corfu delegate");
+    }
     Objects.requireNonNull(event);
     // logger.info("Saving " + event);
     final UUID streamId = CorfuRuntime.getStreamID(config.getStreamName());
@@ -129,6 +141,10 @@ public final class CorfuDelegate {
    * Fetch a batch of events from the last offset position for every stream.
    */
   public List<MultiObjectSMRLogEvent> fetchEvents() {
+    if (!running.get()) {
+      throw new IllegalStateException(
+          "Cannot perform datastore operations without a live corfu delegate");
+    }
     // final String streamName = "Transaction_Stream";
     final String streamName = config.getStreamName();
     final List<MultiObjectSMRLogEvent> events = new ArrayList<>();
@@ -321,6 +337,10 @@ public final class CorfuDelegate {
    * Save a batch of events.
    */
   public void saveEvents(final List<MultiObjectSMRLogEvent> events) throws Exception {
+    if (!running.get()) {
+      throw new IllegalStateException(
+          "Cannot perform datastore operations without a live corfu delegate");
+    }
     Objects.requireNonNull(events);
     for (MultiObjectSMRLogEvent event : events) {
       saveEvent(event);
@@ -341,22 +361,32 @@ public final class CorfuDelegate {
     return runtime;
   }
 
-  public boolean tini() {
-    boolean shutdownStatus = false;
-    logger.info(String.format("Shutting down corfu delegate connected to %s:%d", host, port));
-    logger.info(runtime.getStreamsView().getCurrentLayout().toString());
-    logger.info(runtime.getLayoutView().getRuntimeLayout().toString());
-    logCorfuCounters();
-    runtime.shutdown();
-    if (runtime.isShutdown()) {
-      shutdownStatus = true;
-      logger.info(
-          String.format("Successfully shutdown corfu delegate connected to %s:%d", host, port));
+  public CorfuDelegate tini() {
+    if (running.get()) {
+      boolean shutdownStatus = false;
+      logger.info(String.format("Shutting down corfu delegate connected to %s:%d", host, port));
+      logger.info(runtime.getStreamsView().getCurrentLayout().toString());
+      logger.info(runtime.getLayoutView().getRuntimeLayout().toString());
+      logCorfuCounters();
+      runtime.shutdown();
+      if (runtime.isShutdown()) {
+        shutdownStatus = true;
+        logger.info(
+            String.format("Successfully shutdown corfu delegate connected to %s:%d", host, port));
+      } else {
+        logger.info(
+            String.format("Failed to shutdown corfu delegate connected to %s:%d", host, port));
+      }
+      running.compareAndSet(true, shutdownStatus);
     } else {
-      logger
-          .info(String.format("Failed to shutdown corfu delegate connected to %s:%d", host, port));
+      logger.info(String.format(
+          "Cannot shutdown an already stopped corfu delegate connected to %s:%d", host, port));
     }
-    return shutdownStatus;
+    return this;
+  }
+
+  public boolean isRunning() {
+    return running.get();
   }
 
   private void logCorfuCounters() {

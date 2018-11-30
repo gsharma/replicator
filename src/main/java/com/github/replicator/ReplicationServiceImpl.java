@@ -90,9 +90,9 @@ final class ReplicationServiceImpl implements ReplicationService {
     // fsm.transitionTo(fsmFlowId, ServiceState.starting);
 
     corfuDelegate = new CorfuDelegate();
-    final boolean corfuLiveness = corfuDelegate.init(config);
+    corfuDelegate.init(config);
 
-    if (!corfuLiveness) {
+    if (!corfuDelegate.isRunning()) {
       throw new RuntimeException("Failed to establish a communication channel with corfu db");
     }
 
