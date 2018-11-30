@@ -263,7 +263,7 @@ public final class CorfuDelegate {
     event.setType(LogEventType.MULTIOBJECTSMR);
     for (final Map.Entry<UUID, MultiSMREntry> payloadEntry : eventPayload.getEntryMap()
         .entrySet()) {
-      final UUID entryStreamId = payloadEntry.getKey();
+      // final UUID entryStreamId = payloadEntry.getKey();
       final StringBuilder builder = new StringBuilder();
       for (final SMREntry operation : payloadEntry.getValue().getUpdates()) {
         final LogEventEntry logEntry = new LogEventEntry();
@@ -273,18 +273,12 @@ public final class CorfuDelegate {
         // for SMR_METHOD_CLEAR, both key and value will be null
         final Object key =
             operation.getSMRArguments().length > 0 ? operation.getSMRArguments()[0] : null;
-        logEntry.setKey(key);
         final Class keyClass = key != null ? key.getClass() : null;
-        logEntry.setKeyClass(keyClass);
 
         // for SMR_METHOD_REMOVE, value will be null
         final Object value =
             operation.getSMRArguments().length > 1 ? operation.getSMRArguments()[1] : null;
-        logEntry.setValue(value);
         final Class valueClass = value != null ? value.getClass() : null;
-        logEntry.setValueClass(valueClass);
-
-        event.addEntry(logEntry);
 
         builder.append("\n\t")
             .append(String.format(
@@ -293,20 +287,28 @@ public final class CorfuDelegate {
         switch (opMethod) {
           // TODO: finish me
           case SMR_METHOD_PUT:
-            // do we care if this is an insert, update or upsert?
-            break;
-          case SMR_METHOD_PUTALL:
+            logEntry.setKey(key);
+            logEntry.setKeyClass(keyClass);
+            logEntry.setValue(value);
+            logEntry.setValueClass(valueClass);
             break;
           case SMR_METHOD_REMOVE:
+            logEntry.setKey(key);
+            logEntry.setKeyClass(keyClass);
             break;
           case SMR_METHOD_CLEAR:
+            break;
+          case SMR_METHOD_PUTALL:
+            logEntry.setKey(key);
+            logEntry.setKeyClass(keyClass);
             break;
           default:
             logger.error(String.format(
                 "Unhandled [MultiObjectSMREntry::[Offset:%d] [Op:%s] [K:[%s][%s]] [V:[%s][%s]]]",
                 offset, opMethod, key, keyClass, value, valueClass));
-            break;
+            continue;
         }
+        event.addEntry(logEntry);
       }
       logger.info(String.format("Processed MultiObjectSMREntry log event, offset:%d %s", offset,
           builder.toString()));

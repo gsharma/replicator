@@ -75,7 +75,7 @@ public class ReplicationServiceTest {
     // senderCorfuDelegate.saveEvents(events);
 
     logger.info("Starting corfu table operations");
-    final Map<String, String> testMap = getMap(senderCorfuDelegate, streamName);
+    Map<String, String> testMap = getMap(senderCorfuDelegate, streamName);
     // txn-1
     senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
     assertTrue(testMap.isEmpty());
@@ -110,6 +110,33 @@ public class ReplicationServiceTest {
     putAllTest.put("EIGHT", "8");
     putAllTest.put("NONE", "9");
     testMap.putAll(putAllTest);
+    testMap.clear();
+    assertTrue(testMap.isEmpty());
+    senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
+
+    testMap = getMap(senderCorfuDelegate, streamName);
+    // txn-4
+    senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
+    assertTrue(testMap.isEmpty());
+    testMap.put("one", "1");
+    testMap.put("two", "2");
+    testMap.put("one", "11");
+    testMap.replace("two", "22");
+    assertEquals("11", testMap.get("one"));
+    testMap.put("three", "3");
+    testMap.remove("one");
+    assertNull(testMap.get("one"));
+    testMap.clear();
+    assertTrue(testMap.isEmpty());
+    senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
+
+    // txn-5
+    senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
+    assertTrue(testMap.isEmpty());
+    testMap.put("four", "4");
+    testMap.put("five", "5");
+    testMap.put("six", "6");
+    testMap.remove("five");
     testMap.clear();
     assertTrue(testMap.isEmpty());
     senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
