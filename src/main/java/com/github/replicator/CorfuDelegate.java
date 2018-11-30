@@ -1,6 +1,7 @@
 package com.github.replicator;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -336,7 +337,7 @@ public final class CorfuDelegate {
   /**
    * Save a batch of events.
    */
-  public void saveEvents(final List<MultiObjectSMRLogEvent> events) throws Exception {
+  public void saveEvents(final Collection<MultiObjectSMRLogEvent> events) throws Exception {
     if (!running.get()) {
       throw new IllegalStateException(
           "Cannot perform datastore operations without a live corfu delegate");

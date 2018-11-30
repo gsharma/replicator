@@ -17,6 +17,7 @@ import static io.netty.handler.codec.http.HttpVersion.*;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -67,9 +68,10 @@ final class ReceiveModeServiceHandler extends SimpleChannelInboundHandler<FullHt
             objectMapper.readValue(body, ReplicationRequest.class);
         if (replicationRequest != null) {
           // logger.info("Received " + replicationRequest);
-          List<MultiObjectSMRLogEvent> events = replicationRequest.getEvents();
+          final Map<Long, MultiObjectSMRLogEvent> events = replicationRequest.getEvents();
           if (events != null && !events.isEmpty()) {
-            corfuDelegate.saveEvents(events);
+            // TODO: validate checksums
+            corfuDelegate.saveEvents(events.values());
           }
 
           final ReplicationResponse replicationResponse = new ReplicationResponse();

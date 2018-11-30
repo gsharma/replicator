@@ -89,7 +89,11 @@ final class SendModeServiceHandler {
       final HttpUrl url = HttpUrl.parse(config.getRemoteServiceUrl());
       final ReplicationRequest replicationRequest = new ReplicationRequest();
       replicationRequest.setRequestId(Math.random());
-      replicationRequest.setEvents(events);
+      for (final MultiObjectSMRLogEvent event : events) {
+        final byte[] serializedEvent = MultiObjectSMRLogEvent.serialize(event);
+        final long checksum = ReplicationServiceUtils.checksum(serializedEvent);
+        replicationRequest.addEvent(checksum, event);
+      }
 
       final String requestJson = objectMapper.writeValueAsString(replicationRequest);
       final RequestBody body = RequestBody.create(JSON, requestJson);

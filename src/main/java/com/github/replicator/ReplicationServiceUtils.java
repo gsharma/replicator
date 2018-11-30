@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -40,6 +42,12 @@ final class ReplicationServiceUtils {
   // TODO: not use hard-coded timeouts. Just set this up in a sane manner
   private static final OkHttpClient httpClient =
       new OkHttpClient.Builder().readTimeout(10, TimeUnit.SECONDS).build();
+
+  static long checksum(final byte[] payload) {
+    final Checksum crc32 = new CRC32();
+    crc32.update(payload, 0, payload.length);
+    return crc32.getValue();
+  }
 
   static Response post(final URL url, final MediaType mediaType, final String body)
       throws IOException {

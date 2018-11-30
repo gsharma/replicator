@@ -1,6 +1,7 @@
 package com.github.replicator;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Framework for replication service requests.
@@ -9,7 +10,7 @@ import java.util.List;
  */
 public class ReplicationRequest {
   private double requestId;
-  private List<MultiObjectSMRLogEvent> events;
+  private Map<Long, MultiObjectSMRLogEvent> events = new HashMap<>();
 
   public void setRequestId(double requestId) {
     this.requestId = requestId;
@@ -19,11 +20,11 @@ public class ReplicationRequest {
     return requestId;
   }
 
-  public void setEvents(List<MultiObjectSMRLogEvent> events) {
-    this.events = events;
+  public void addEvent(final Long checksum, final MultiObjectSMRLogEvent event) {
+    events.putIfAbsent(checksum, event);
   }
 
-  public List<MultiObjectSMRLogEvent> getEvents() {
+  public Map<Long, MultiObjectSMRLogEvent> getEvents() {
     return events;
   }
 
