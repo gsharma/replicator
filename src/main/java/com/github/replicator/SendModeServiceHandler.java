@@ -79,9 +79,8 @@ final class SendModeServiceHandler {
     try {
       final List<MultiObjectSMRLogEvent> events = corfuDelegate.fetchEvents();
       if (events == null || events.isEmpty()) {
-        logger.info(String.format(
-            "Streamer found no events to stream; snoozing for %d seconds until next cycle",
-            config.getReplicationIntervalSeconds()));
+        logger.info("Streamer found no events to stream; snoozing for {} seconds until next cycle",
+            config.getReplicationIntervalSeconds());
         return;
       }
 
@@ -94,6 +93,7 @@ final class SendModeServiceHandler {
         final long checksum = ReplicationServiceUtils.checksum(serializedEvent);
         replicationRequest.addEvent(checksum, event);
       }
+      logger.info(String.format("Preparing to stream %s", replicationRequest));
 
       final String requestJson = objectMapper.writeValueAsString(replicationRequest);
       final RequestBody body = RequestBody.create(JSON, requestJson);

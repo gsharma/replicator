@@ -33,7 +33,6 @@ public class MultiObjectSMRLogEvent implements Serializable {
   private Long offset;
   private LogEventType type;
   private List<LogEventEntry> entries = new ArrayList<>();
-  // TODO: checksum
 
   @Accessor
   public String getStreamName() {

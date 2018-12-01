@@ -37,7 +37,7 @@ import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
  * @author gaurav
  */
 final class ReplicationServiceUtils {
-  public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+  static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
   // TODO: not use hard-coded timeouts. Just set this up in a sane manner
   private static final OkHttpClient httpClient =
@@ -51,23 +51,23 @@ final class ReplicationServiceUtils {
 
   static Response post(final URL url, final MediaType mediaType, final String body)
       throws IOException {
-    RequestBody requestBody = RequestBody.create(mediaType, body);
-    Request request = new Request.Builder().url(url).post(requestBody).build();
-    Response response = httpClient.newCall(request).execute();
+    final RequestBody requestBody = RequestBody.create(mediaType, body);
+    final Request request = new Request.Builder().url(url).post(requestBody).build();
+    final Response response = httpClient.newCall(request).execute();
     return response;
   }
 
   static Response get(final URL url) throws IOException {
-    Request request = new Request.Builder().url(url).get().build();
-    Response response = httpClient.newCall(request).execute();
+    final Request request = new Request.Builder().url(url).get().build();
+    final Response response = httpClient.newCall(request).execute();
     return response;
   }
 
   static String readRequest(final ChannelHandlerContext context, final FullHttpRequest request) {
-    StringBuilder details = new StringBuilder();
+    final StringBuilder details = new StringBuilder();
 
     // 1. parse uri and method
-    SocketAddress localAddress = context.pipeline().channel().localAddress();
+    final SocketAddress localAddress = context.pipeline().channel().localAddress();
     final HttpMethod method = request.method();
     final String uri = request.uri();
     details.append(method.name() + ' ' + localAddress + uri);
