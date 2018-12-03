@@ -128,6 +128,7 @@ public final class CorfuDelegate {
     // logger.info("Saving " + event);
     final UUID streamId = CorfuRuntime.getStreamID(config.getStreamName());
     allStreamViews.putIfAbsent(streamId, runtime.getStreamsView().get(streamId));
+    final Long eventOffset = event.getOffset();
     final IStreamView streamView = allStreamViews.get(streamId);
     final long tailOffsetBefore = tailOffset(streamId);
     final byte[] flattenedEvent = MultiObjectSMRLogEvent.jsonSerialize(event);
@@ -154,8 +155,8 @@ public final class CorfuDelegate {
         ObjectsView.TRANSACTION_STREAM_ID.toString(), streamName, streamId.toString()));
     allStreamViews.putIfAbsent(streamId, runtime.getStreamsView().get(streamId));
     final IStreamView streamView = allStreamViews.get(streamId);
-    final long tailOffset = tailOffset(streamId);
-    if (tailOffset == emptyStreamOffset) {
+    final long currentTailOffset = tailOffset(streamId);
+    if (currentTailOffset == emptyStreamOffset) {
       logger.info("No events in stream: " + streamName);
       return events;
     }
@@ -163,20 +164,33 @@ public final class CorfuDelegate {
     //
     // TODO: startOffset should be configurable to allow the replicator to shutdown and resume from
     // either the last streamed offset or a chosen offset of interest
-    long startOffset = 0;
     globalStreamOffsets.putIfAbsent(streamName, 0L);
-    startOffset = globalStreamOffsets.get(streamName);
+    long lastStreamedOffset = globalStreamOffsets.get(streamName);
+    if (currentTailOffset == lastStreamedOffset) {
+      logger.info(String.format("Already at the tail:%d of stream:%s, no more events to process",
+          currentTailOffset, streamName));
+      return events;
+    }
 
+    if (lastStreamedOffset > 0L) {
+      lastStreamedOffset++;
+    }
+
+    // stream offset starts at zero
     long highWatermark = 0;
-    if (tailOffset - startOffset > config.getReplicationStreamDepth()) {
-      highWatermark = startOffset + config.getReplicationStreamDepth();
+    if ((currentTailOffset - lastStreamedOffset) >= config.getReplicationStreamDepth()) {
+      highWatermark = lastStreamedOffset + config.getReplicationStreamDepth() - 1;
     } else {
-      highWatermark = tailOffset;
+      highWatermark = currentTailOffset;
     }
 
     logger.info(String.format("Fetching events from stream:%s, offsets::start:%d, end:%d",
-        streamName, startOffset, highWatermark));
+        streamName, lastStreamedOffset, highWatermark));
     final List<ILogData> eventsInLog = streamView.remainingUpTo(highWatermark);
+
+    logger.info(String.format("Refreshing cached offsets:: stream:%s, offset:%d", streamName,
+        highWatermark));
+    globalStreamOffsets.put(streamName, highWatermark);
 
     if (eventsInLog != null) {
       for (final ILogData eventInLog : eventsInLog) {
@@ -204,16 +218,9 @@ public final class CorfuDelegate {
           // will blow up with a ClassCastException. This implies that even though the methodology
           // below for checking the LogEntryType might be the right/clean way to check the log entry
           // type, it does not always work in practice.
-          //
-          // final LogEntry logEntry = eventInLog.getLogEntry(runtime);
-          // final LogEntryType logEntryType = logEntry.getType();
-          // logger.info(String.format("Processing %s type log event", logEntryType));
 
           /**
-           * TODO: add handlers for supported types
-           * 
            * Payload types:<br/>
-           * 
            * 1. NOP(0, LogEntry.class)<br/>
            * 2. SMR(1, SMREntry.class)<br/>
            * 3. MULTIOBJSMR(7, MultiObjectSMREntry.class)<br/>
@@ -224,6 +231,7 @@ public final class CorfuDelegate {
           final Long eventLogOffset = eventInLog.getGlobalAddress();
           final Object eventPayload = eventInLog.getPayload(runtime);
           final LogEntry entry = eventInLog.getLogEntry(runtime);
+
           // TODO: check for handle-able entry types
           final LogEntryType entryType = entry.getType();
           if (eventPayload != null) {
@@ -254,10 +262,9 @@ public final class CorfuDelegate {
           logger.error("Deserialization issue encountered for an event", serdeIssue);
         }
       }
+    } else {
+      logger.error("Read null events from log");
     }
-    logger.info(String.format("Refreshing cached offsets:: stream:%s, offset:%d", streamName,
-        highWatermark));
-    globalStreamOffsets.put(streamName, highWatermark);
     return events;
   }
 
@@ -302,7 +309,6 @@ public final class CorfuDelegate {
                 "[MultiObjectSMREntry::[Offset:%d] [Op:%s] [K:[%s][%s]] [V:[%s][%s]]]", offset,
                 opMethod, key, keyClass, value, valueClass));
         switch (opMethod) {
-          // TODO: finish me
           case SMR_METHOD_PUT:
             logEntry.setKey(key);
             logEntry.setKeyClass(keyClass);

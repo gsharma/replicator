@@ -38,16 +38,16 @@ public class ReplicationServiceTest {
   // Receiver
   private static ReplicationServiceConfiguration receiverConfig =
       new ReplicationServiceConfiguration("localhost", 9002, 2,
-          Runtime.getRuntime().availableProcessors(), 120, 120, 9, ReplicationMode.RECEIVER,
-          "localhost", 9005, 5L, streamName, 0L, 9, null);
+          Runtime.getRuntime().availableProcessors(), 120, 120, 5, ReplicationMode.RECEIVER,
+          "localhost", 9005, 2L, streamName, 0L, 5, null);
   private static ReplicationService receiverService =
       ReplicationServiceBuilder.newBuilder().config(receiverConfig).build();
 
   // Sender
   private static ReplicationServiceConfiguration senderConfig =
       new ReplicationServiceConfiguration("localhost", 8002, 2,
-          Runtime.getRuntime().availableProcessors(), 15, 15, 9, ReplicationMode.TRANSMITTER,
-          "localhost", 8005, 5L, streamName, 0L, 9, "http://localhost:9002/service/replicator/");
+          Runtime.getRuntime().availableProcessors(), 15, 15, 5, ReplicationMode.TRANSMITTER,
+          "localhost", 8005, 2L, streamName, 0L, 5, "http://localhost:9002/service/replicator/");
   private static ReplicationService senderService =
       ReplicationServiceBuilder.newBuilder().config(senderConfig).build();
 
@@ -141,8 +141,19 @@ public class ReplicationServiceTest {
     assertTrue(testMap.isEmpty());
     senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
 
+    // txn-6
+    senderCorfuDelegate.getRuntime().getObjectsView().TXBegin();
+    assertTrue(testMap.isEmpty());
+    testMap.put("seven", "7");
+    testMap.put("eight", "8");
+    testMap.put("nine", "9");
+    testMap.remove("seven");
+    testMap.clear();
+    assertTrue(testMap.isEmpty());
+    senderCorfuDelegate.getRuntime().getObjectsView().TXEnd();
+
     // 4. breather for Receiver to receive and save events (apply log)
-    Thread.sleep(5_000L);
+    Thread.sleep(6_000L);
   }
 
   private <K, V> Map<K, V> getMap(final CorfuDelegate delegate, final String streamName) {

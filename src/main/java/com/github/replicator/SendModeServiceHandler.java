@@ -61,7 +61,6 @@ final class SendModeServiceHandler {
         while (running.get() && !isInterrupted()) {
           try {
             stream();
-
             sleep(TimeUnit.SECONDS.toMillis(config.getReplicationIntervalSeconds()));
           } catch (InterruptedException interrupted) {
             running.set(false);
