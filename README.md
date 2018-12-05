@@ -44,6 +44,8 @@ Sync Phase can be entered on the TRANSMITTER replicator from either the Negotiat
 ### Sync Phase (RECEIVER)
 Sync Phase for the RECEIVER replicator starts in response the stream requests received by it from the TRANSMITTER replicator. The RECEIVER replicator maintains with it the authoritative stream offsets for every event it has successfully processed and applied to its local database. Failure handling for replicators in RECEIVER and TRANSMITTER modes - both brownout and blackout type failures are described in a later section.
 
+Receiver will save arrays of 4-tuples of source metadata: clusterId, streamName, lastOffsetProcessed, epoch.
+
 ### Recovery Phase (TRANSMITTER)
 Recovery Phase is a logical-phase and not a real phase as modeled by the Replicator's FSM but it deserves a lucid explanation. A local process failure of the TRANSMITTER replicator due to one of the many reasons (eg. OOM, core-dump, accidental shutdown, power-failure, etc) will result in TRANSMITTER FSM resetting itself back to Initialization Phase. This will have already disrupted its channels with the remote replicators. From this point onwards, the local FSM proceeds with the Initialization->Connection phases until the Negotiation phase is completed and the TRANSMITTER is again made aware of where it is to begin streaming its local streams. At this point, it is again ready to transition to the Sync phase. Note that loss of all local in-memory state on the TRANSMITTER is okay since the Negotiation phase rehydrates this data from the RECEIVER who is the authoritative source of successfully processed stream metadata. It is also important to understand that the TRANSMITTER is designed with idempotency as a key design tenet. 
 
