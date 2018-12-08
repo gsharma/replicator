@@ -20,6 +20,7 @@ import org.corfudb.annotations.Mutator;
 public class LogEventEntry implements Serializable {
   private static final long serialVersionUID = 1L;
   private MutableOperation operation;
+  private long mutationSequenceNumber;
   private Object key;
   private Class keyClass;
   private Object value;
@@ -54,6 +55,16 @@ public class LogEventEntry implements Serializable {
   @Mutator(name = "setOperation")
   public void setOperation(final MutableOperation operation) {
     this.operation = operation;
+  }
+
+  @Accessor
+  public long getMutationSequenceNumber() {
+    return mutationSequenceNumber;
+  }
+
+  @Mutator(name = "setMutationSequenceNumber")
+  public void setMutationSequenceNumber(final long mutationSequenceNumber) {
+
   }
 
   @Accessor
@@ -101,6 +112,7 @@ public class LogEventEntry implements Serializable {
     final int prime = 31;
     int result = 1;
     result = prime * result + ((key == null) ? 0 : key.hashCode());
+    result = prime * result + (int) (mutationSequenceNumber ^ (mutationSequenceNumber >>> 32));
     result = prime * result + ((operation == null) ? 0 : operation.hashCode());
     result = prime * result + ((value == null) ? 0 : value.hashCode());
     return result;
@@ -125,6 +137,9 @@ public class LogEventEntry implements Serializable {
     } else if (!key.equals(other.key)) {
       return false;
     }
+    if (mutationSequenceNumber != other.mutationSequenceNumber) {
+      return false;
+    }
     if (operation != other.operation) {
       return false;
     }
@@ -141,8 +156,9 @@ public class LogEventEntry implements Serializable {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("LogEventEntry [operation=").append(operation).append(", key=").append(key)
-        .append(", keyClass=").append(keyClass).append(", value=").append(value)
+    builder.append("LogEventEntry [operation=").append(operation)
+        .append(", mutationSequenceNumber=").append(mutationSequenceNumber).append(", key=")
+        .append(key).append(", keyClass=").append(keyClass).append(", value=").append(value)
         .append(", valueClass=").append(valueClass).append("]");
     return builder.toString();
   }
