@@ -14,10 +14,12 @@
     <github.repo.name>replicator</github.repo.name>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>4.12</junit.version>
-    <log4j.version>2.11.1</log4j.version>
-    <corfu.version>0.2.0-SNAPSHOT</corfu.version>
+    <log4j.version>2.12.1</log4j.version>
+    <corfu.version>0.3.0-SNAPSHOT</corfu.version>
+    <jackson.version>2.9.10.3</jackson.version>
+    <okhttp.version>4.2.0</okhttp.version>
     <javac.target>1.8</javac.target>
-    <netty.version>4.1.38.Final</netty.version>
+    <netty.version>4.1.45.Final</netty.version>
   </properties>
 
   <repositories>
@@ -31,7 +33,8 @@
     </repository>
     <repository>
       <id>mvn-repo</id>
-      <url>https://github.com/CorfuDB/Corfu-Repos/mvn-repo</url>
+      <!--<url>https://github.com/CorfuDB/Corfu-Repos/mvn-repo</url>-->
+      <url>https://api.bintray.com/maven/corfudb/maven/org.corfudb/</url>
       <snapshots>
         <enabled>true</enabled>
         <updatePolicy>always</updatePolicy>
@@ -56,12 +59,7 @@
     <dependency>
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>okhttp</artifactId>
-      <version>3.11.0</version>
-    </dependency>
-    <dependency>
-      <groupId>com.squareup.okio</groupId>
-      <artifactId>okio</artifactId>
-      <version>1.14.0</version>
+      <version>${okhttp.version}</version>
     </dependency>
 
     <dependency>
@@ -102,7 +100,7 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <version>2.9.9.2</version>
+      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
