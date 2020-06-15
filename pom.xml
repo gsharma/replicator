@@ -19,7 +19,7 @@
     <jackson.version>2.9.10.4</jackson.version>
     <okhttp.version>4.2.0</okhttp.version>
     <javac.target>1.8</javac.target>
-    <netty.version>4.1.45.Final</netty.version>
+    <netty.version>4.1.50.Final</netty.version>
   </properties>
 
   <repositories>
