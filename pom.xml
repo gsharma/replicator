@@ -14,7 +14,7 @@
     <github.repo.name>replicator</github.repo.name>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>4.12</junit.version>
-    <log4j.version>2.12.1</log4j.version>
+    <log4j.version>2.15.0</log4j.version>
     <corfu.version>0.3.0-SNAPSHOT</corfu.version>
     <jackson.version>2.9.10.4</jackson.version>
     <okhttp.version>4.2.0</okhttp.version>
