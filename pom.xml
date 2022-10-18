@@ -16,7 +16,7 @@
     <junit.version>4.12</junit.version>
     <log4j.version>2.12.1</log4j.version>
     <corfu.version>0.3.0-SNAPSHOT</corfu.version>
-    <jackson.version>2.9.10.4</jackson.version>
+    <jackson.version>2.13.4.1</jackson.version>
     <okhttp.version>4.2.0</okhttp.version>
     <javac.target>1.8</javac.target>
     <netty.version>4.1.45.Final</netty.version>
